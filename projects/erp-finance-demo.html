@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WorkBuddy ERP 财务核心模块 - 实习模拟系统</title>
+  <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue/dist/index.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; font-family: 'PingFang SC','Microsoft YaHei','Helvetica Neue',Helvetica,Arial,sans-serif; }
+    #app { height: 100%; }
+    .erp-layout { display: flex; flex-direction: column; height: 100vh; background: #f5f7fa; }
+    .erp-header { height: 56px; background: linear-gradient(90deg,#1a237e 0%,#283593 100%); color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; box-shadow: 0 2px 8px rgba(0,0,0,.12); z-index: 100; }
+    .erp-header-left { display: flex; align-items: center; gap: 16px; }
+    .erp-logo { font-size: 20px; font-weight: 700; letter-spacing: .5px; }
+    .erp-tag { background: rgba(255,255,255,.15); padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+    .erp-header-right { display: flex; align-items: center; gap: 16px; font-size: 13px; }
+    .erp-body { display: flex; flex: 1; overflow: hidden; }
+    .erp-sidebar { width: 220px; background: #fff; border-right: 1px solid #e4e7ed; overflow-y: auto; }
+    .erp-sidebar .el-menu { border-right: none; }
+    .erp-main { flex: 1; overflow: auto; padding: 16px; }
+    .page-title { font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #303133; display: flex; align-items: center; gap: 8px; }
+    .card { background: #fff; border-radius: 8px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.06); margin-bottom: 16px; }
+    .toolbar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+    .text-right { text-align: right; }
+    .amount { font-family: 'Roboto Mono',Consolas,monospace; }
+    .debit { color: #f56c6c; }
+    .credit { color: #67c23a; }
+    .balance-tip { background: #f0f9ff; border: 1px solid #b3e0ff; padding: 10px 14px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
+    .balance-tip.unbalanced { background: #fff0f0; border-color: #ffcdcd; }
+    .subject-option { display: flex; justify-content: space-between; }
+    .subject-code { color: #909399; font-size: 12px; }
+    .entry-row { display: grid; grid-template-columns: 2fr 2.5fr 1fr 1fr 40px; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap: 16px; margin-bottom: 16px; }
+    .stat-card { background: #fff; border-radius: 8px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.06); border-left: 4px solid #409eff; }
+    .stat-card.red { border-left-color: #f56c6c; }
+    .stat-card.green { border-left-color: #67c23a; }
+    .stat-card.orange { border-left-color: #e6a23c; }
+    .stat-label { color: #909399; font-size: 13px; margin-bottom: 6px; }
+    .stat-value { font-size: 22px; font-weight: 700; color: #303133; }
+    .risk-score { font-size: 36px; font-weight: 700; color: #67c23a; }
+    .risk-score.warn { color: #e6a23c; }
+    .risk-score.danger { color: #f56c6c; }
+    .menu-mega { background: #1a1f3d; color: #fff; padding: 16px; border-radius: 0 0 8px 8px; }
+    .menu-mega h4 { margin: 0 0 8px; font-size: 14px; color: #c7ceff; }
+    .menu-mega ul { list-style: none; padding: 0; margin: 0; }
+    .menu-mega li { padding: 6px 0; font-size: 13px; color: #dcdcdc; cursor: pointer; }
+    .menu-mega li:hover { color: #fff; text-decoration: underline; }
+    .ai-panel { background: linear-gradient(135deg,#f0f7ff 0%,#e6f0ff 100%); border: 1px dashed #409eff; border-radius: 8px; padding: 16px; text-align: center; }
+    .fade-enter-active,.fade-leave-active { transition: opacity .2s; }
+    .fade-enter-from,.fade-leave-to { opacity: 0; }
+    .voucher-preview { border: 1px solid #dcdfe6; border-radius: 4px; padding: 20px; background: #fff; }
+    .voucher-preview h3 { text-align: center; margin: 0 0 16px; }
+    .tree-indent { display: inline-block; }
+    .pointer { cursor: pointer; }
+    .el-table th { background: #f5f7fa !important; }
+    .dashboard-kpi { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 16px; }
+    @media (max-width: 768px) { .dashboard-kpi { grid-template-columns: repeat(2,1fr); } .entry-row { grid-template-columns: 1fr 1fr 80px 80px 32px; } }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="erp-layout">
+      <header class="erp-header">
+        <div class="erp-header-left">
+          <span class="erp-logo">WorkBuddy ERP</span>
+          <span class="erp-tag">财务核心模块 v1.0</span>
+          <span class="erp-tag">实习模拟系统</span>
+        </div>
+        <div class="erp-header-right">
+          <span>账套：演示账套（2026年 第07期）</span>
+          <span>操作员：会计</span>
+          <el-avatar :size="28" icon="UserFilled" style="background:#5c6bc0"></el-avatar>
+        </div>
+      </header>
+      <div class="erp-body">
+        <aside class="erp-sidebar">
+          <el-menu :default-active="activeMenu" @select="handleMenuSelect" class="erp-menu">
+            <el-sub-menu index="accounting">
+              <template #title>
+                <el-icon><document /></el-icon>
+                <span>账务处理</span>
+              </template>
+              <el-menu-item index="voucher-entry">录凭证</el-menu-item>
+              <el-menu-item index="voucher-query">查凭证</el-menu-item>
+              <el-menu-item index="detail-ledger">明细账</el-menu-item>
+              <el-menu-item index="subject-balance">科目余额表</el-menu-item>
+              <el-menu-item index="general-ledger">总分类账</el-menu-item>
+              <el-menu-item index="voucher-attach">凭证附件</el-menu-item>
+              <el-menu-item index="smart-voucher">智能凭证</el-menu-item>
+              <el-menu-item index="period-end">期末处理</el-menu-item>
+            </el-sub-menu>
+            <el-sub-menu index="tax">
+              <template #title>
+                <el-icon><money /></el-icon>
+                <span>税务管理</span>
+              </template>
+              <el-menu-item index="invoice-mgr">发票管理</el-menu-item>
+              <el-menu-item index="vat">增值税</el-menu-item>
+              <el-menu-item index="cit">企业所得税</el-menu-item>
+              <el-menu-item index="tax-declare">纳税申报</el-menu-item>
+              <el-menu-item index="tax-risk">税务风险</el-menu-item>
+              <el-menu-item index="tax-docs">税务资料</el-menu-item>
+            </el-sub-menu>
+          </el-menu>
+        </aside>
+        <main class="erp-main">
+          <transition name="fade" mode="out-in">
+            <component :is="currentView" :store="store"></component>
+          </transition>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/vue-demi/lib/index.iife.js"></script>
+  <script src="https://unpkg.com/element-plus/dist/index.full.min.js"></script>
+  <script src="https://unpkg.com/@element-plus/icons-vue"></script>
+  <script src="https://unpkg.com/pinia@2/dist/pinia.iife.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <script>
+    const { createApp, ref, computed, reactive, watch, onMounted, onUnmounted, nextTick } = Vue;
+    const { createPinia, defineStore } = Pinia;
+    const { ElMessage, ElMessageBox } = ElementPlus;
+
+    // 科目表（简化版企业会计准则）
+    const SUBJECTS = [
+      { code: '1001', name: '库存现金', category: '资产', direction: '借' },
+      { code: '1002', name: '银行存款', category: '资产', direction: '借' },
+      { code: '1122', name: '应收账款', category: '资产', direction: '借' },
+      { code: '1123', name: '预付账款', category: '资产', direction: '借' },
+      { code: '1221', name: '其他应收款', category: '资产', direction: '借' },
+      { code: '1401', name: '材料采购', category: '资产', direction: '借' },
+      { code: '1403', name: '原材料', category: '资产', direction: '借' },
+      { code: '1405', name: '库存商品', category: '资产', direction: '借' },
+      { code: '1601', name: '固定资产', category: '资产', direction: '借' },
+      { code: '1602', name: '累计折旧', category: '资产', direction: '贷' },
+      { code: '2001', name: '短期借款', category: '负债', direction: '贷' },
+      { code: '2202', name: '应付账款', category: '负债', direction: '贷' },
+      { code: '2203', name: '预收账款', category: '负债', direction: '贷' },
+      { code: '2211', name: '应付职工薪酬', category: '负债', direction: '贷' },
+      { code: '2221', name: '应交税费', category: '负债', direction: '贷' },
+      { code: '222101', name: '应交税费-应交增值税（进项税额）', category: '负债', direction: '贷' },
+      { code: '222102', name: '应交税费-应交增值税（销项税额）', category: '负债', direction: '贷' },
+      { code: '222103', name: '应交税费-未交增值税', category: '负债', direction: '贷' },
+      { code: '2241', name: '其他应付款', category: '负债', direction: '贷' },
+      { code: '4001', name: '实收资本', category: '所有者权益', direction: '贷' },
+      { code: '4103', name: '本年利润', category: '所有者权益', direction: '贷' },
+      { code: '4104', name: '利润分配', category: '所有者权益', direction: '贷' },
+      { code: '5001', name: '生产成本', category: '成本', direction: '借' },
+      { code: '5101', name: '制造费用', category: '成本', direction: '借' },
+      { code: '6001', name: '主营业务收入', category: '损益-收入', direction: '贷' },
+      { code: '6051', name: '其他业务收入', category: '损益-收入', direction: '贷' },
+      { code: '6401', name: '主营业务成本', category: '损益-支出', direction: '借' },
+      { code: '6403', name: '营业税金及附加', category: '损益-支出', direction: '借' },
+      { code: '6601', name: '销售费用', category: '损益-支出', direction: '借' },
+      { code: '6602', name: '管理费用', category: '损益-支出', direction: '借' },
+      { code: '6603', name: '财务费用', category: '损益-支出', direction: '借' },
+      { code: '6801', name: '所得税费用', category: '损益-支出', direction: '借' }
+    ];
+
+    const STORAGE_KEY = 'workbuddy_erp_demo_v1';
+
+    // 默认示例数据
+    function getDefaultData() {
+      return {
+        vouchers: [
+          { id: 1, voucher_no: '记-1', voucher_date: '2026-07-05', period: '2026-07', creator: '会计', status: '已审核', created_time: '2026-07-05 10:00', entries: [
+            { summary: '收到投资款', subject_id: 1002, subject_name: '银行存款', debit: 500000, credit: 0, assist_item: '', remark: '' },
+            { summary: '收到投资款', subject_id: 4001, subject_name: '实收资本', debit: 0, credit: 500000, assist_item: '', remark: '' }
+          ]},
+          { id: 2, voucher_no: '记-2', voucher_date: '2026-07-08', period: '2026-07', creator: '会计', status: '已审核', created_time: '2026-07-08 11:20', entries: [
+            { summary: '采购原材料', subject_id: 1403, subject_name: '原材料', debit: 80000, credit: 0, assist_item: 'A材料', remark: '' },
+            { summary: '采购原材料', subject_id: 222101, subject_name: '应交税费-应交增值税（进项税额）', debit: 10400, credit: 0, assist_item: '', remark: '' },
+            { summary: '采购原材料', subject_id: 2202, subject_name: '应付账款', debit: 0, credit: 90400, assist_item: '供应商A', remark: '' }
+          ]},
+          { id: 3, voucher_no: '记-3', voucher_date: '2026-07-12', period: '2026-07', creator: '会计', status: '已审核', created_time: '2026-07-12 14:30', entries: [
+            { summary: '销售商品', subject_id: 1122, subject_name: '应收账款', debit: 113000, credit: 0, assist_item: '客户甲', remark: '' },
+            { summary: '销售商品', subject_id: 6001, subject_name: '主营业务收入', debit: 0, credit: 100000, assist_item: '', remark: '' },
+            { summary: '销售商品', subject_id: 222102, subject_name: '应交税费-应交增值税（销项税额）', debit: 0, credit: 13000, assist_item: '', remark: '' }
+          ]},
+          { id: 4, voucher_no: '记-4', voucher_date: '2026-07-15', period: '2026-07', creator: '会计', status: '已审核', created_time: '2026-07-15 09:10', entries: [
+            { summary: '支付办公费', subject_id: 6602, subject_name: '管理费用', debit: 3000, credit: 0, assist_item: '办公费', remark: '' },
+            { summary: '支付办公费', subject_id: 1002, subject_name: '银行存款', debit: 0, credit: 3000, assist_item: '', remark: '' }
+          ]},
+          { id: 5, voucher_no: '记-5', voucher_date: '2026-07-18', period: '2026-07', creator: '会计', status: '草稿', created_time: '2026-07-18 16:45', entries: [
+            { summary: '计提工资', subject_id: 6602, subject_name: '管理费用', debit: 20000, credit: 0, assist_item: '工资', remark: '' },
+            { summary: '计提工资', subject_id: 2211, subject_name: '应付职工薪酬', debit: 0, credit: 20000, assist_item: '', remark: '' }
+          ]}
+        ],
+        invoices: [
+          { id: 1, type: '进项', invoice_code: '4400123456', invoice_number: '2026070001', buyer: '演示公司', seller: '供应商A', tax_rate: 13, amount: 80000, tax_amount: 10400, invoice_date: '2026-07-08', status: '已认证', certified: true },
+          { id: 2, type: '销项', invoice_code: '4400123457', invoice_number: '2026070002', buyer: '客户甲', seller: '演示公司', tax_rate: 13, amount: 100000, tax_amount: 13000, invoice_date: '2026-07-12', status: '已开票', certified: false },
+          { id: 3, type: '销项', invoice_code: '4400123458', invoice_number: '2026070003', buyer: '客户乙', seller: '演示公司', tax_rate: 6, amount: 50000, tax_amount: 3000, invoice_date: '2026-07-20', status: '已开票', certified: false }
+        ],
+        subjects: SUBJECTS,
+        period: '2026-07',
+        company: '广东正好电子制造股份有限公司',
+        closed: false
+      };
+    }
+
+    const useErpStore = defineStore('erp', {
+      state: () => {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        const base = saved ? JSON.parse(saved) : getDefaultData();
+        return { ...base, subjects: SUBJECTS };
+      },
+      actions: {
+        save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(this.$state)); },
+        reset() {
+          const d = getDefaultData();
+          Object.assign(this, d);
+          this.save();
+        },
+        addVoucher(v) {
+          v.id = Date.now();
+          this.vouchers.unshift(v);
+          this.save();
+        },
+        updateVoucher(v) {
+          const idx = this.vouchers.findIndex(x => x.id === v.id);
+          if (idx >= 0) { this.vouchers[idx] = v; this.save(); }
+        },
+        deleteVoucher(id) {
+          this.vouchers = this.vouchers.filter(x => x.id !== id);
+          this.save();
+        },
+        addInvoice(inv) {
+          inv.id = Date.now() + Math.random();
+          this.invoices.unshift(inv);
+          this.save();
+        }
+      },
+      getters: {
+        totalDebit: (s) => s.vouchers.reduce((a,v)=>a+v.entries.reduce((b,e)=>b+(+e.debit||0),0),0),
+        totalCredit: (s) => s.vouchers.reduce((a,v)=>a+v.entries.reduce((b,e)=>b+(+e.credit||0),0),0),
+        outputTax: (s) => s.invoices.filter(i=>i.type==='销项').reduce((a,i)=>a+(+i.tax_amount||0),0),
+        inputTax: (s) => s.invoices.filter(i=>i.type==='进项').reduce((a,i)=>a+(+i.tax_amount||0),0),
+        netVat: (s) => s.outputTax - s.inputTax
+      }
+    });
+
+    // 工具函数
+    function formatMoney(n) {
+      if (n === undefined || n === null || n === '') return '0.00';
+      return Number(n).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    function dateInPeriod(d, p) { return d.startsWith(p); }
+    function subjectBalance(store, code) {
+      const dir = store.subjects.find(s=>s.code===code)?.direction || '借';
+      let debit = 0, credit = 0;
+      store.vouchers.filter(v=>v.status==='已审核').forEach(v=>{
+        v.entries.forEach(e=>{
+          if (e.subject_id == code || e.subject_name.includes(code) || store.subjects.find(s=>s.code===code && e.subject_name===s.name)) {
+            debit += (+e.debit||0); credit += (+e.credit||0);
+          }
+        });
+      });
+      const balance = dir==='借' ? debit-credit : credit-debit;
+      return {debit,credit,balance,dir};
+    }
+
+    const app = createApp({
+      setup() {
+        const store = useErpStore();
+        const activeMenu = ref('voucher-entry');
+        const currentView = computed(() => VIEW_MAP[activeMenu.value] || VoucherEntry);
+        function handleMenuSelect(index) { activeMenu.value = index; }
+        return { store, activeMenu, currentView, handleMenuSelect };
+      }
+    });
+
+    // ===== 组件：录凭证 =====
+    const VoucherEntry = {
+      props: ['store'],
+      setup(props) {
+        const store = props.store;
+        const form = reactive({
+          id: null, voucher_no: '', voucher_date: new Date().toISOString().slice(0,10),
+          period: store.period, creator: '会计', status: '草稿', attachment_count: 0, remark: ''
+        });
+        const entries = reactive([
+          { summary: '', subject_id: '', subject_name: '', debit: 0, credit: 0, assist_item: '', remark: '' },
+          { summary: '', subject_id: '', subject_name: '', debit: 0, credit: 0, assist_item: '', remark: '' }
+        ]);
+        const subjectSearch = reactive(['','','','','']);
+        const editingId = ref(null);
+
+        function resetForm() {
+          form.id=null; form.voucher_no=''; form.voucher_date=new Date().toISOString().slice(0,10);
+          form.period=store.period; form.status='草稿'; form.attachment_count=0; form.remark='';
+          entries.splice(0, entries.length,
+            { summary: '', subject_id: '', subject_name: '', debit: 0, credit: 0, assist_item: '', remark: '' },
+            { summary: '', subject_id: '', subject_name: '', debit: 0, credit: 0, assist_item: '', remark: '' }
+          );
+          editingId.value=null;
+        }
+
+        function addRow() {
+          entries.push({ summary: '', subject_id: '', subject_name: '', debit: 0, credit: 0, assist_item: '', remark: '' });
+        }
+        function removeRow(idx) { if(entries.length>2) entries.splice(idx,1); }
+        const totalDebit = computed(() => entries.reduce((a,e)=>a+(+e.debit||0),0));
+        const totalCredit = computed(() => entries.reduce((a,e)=>a+(+e.credit||0),0));
+        const balanced = computed(() => Math.abs(totalDebit.value - totalCredit.value) < 0.001 && totalDebit.value > 0);
+
+        function onSubjectSelect(idx, code) {
+          const s = store.subjects.find(x=>x.code===code);
+          if(s){ entries[idx].subject_id=s.code; entries[idx].subject_name=s.name; }
+        }
+        function filterSubjects(q) {
+          if(!q) return store.subjects;
+          const k=q.toLowerCase();
+          return store.subjects.filter(s=>s.name.includes(k)||s.code.includes(k));
+        }
+        function autoDiff() {
+          const diff = totalDebit.value - totalCredit.value;
+          if(diff>0) {
+            const empty = entries.find(e=>!e.subject_id);
+            if(empty) { empty.credit = diff; }
+            else { addRow(); entries[entries.length-1].credit = diff; }
+          } else if(diff<0) {
+            const empty = entries.find(e=>!e.subject_id);
+            if(empty) { empty.debit = -diff; }
+            else { addRow(); entries[entries.length-1].debit = -diff; }
+          }
+        }
+        function saveVoucher(s) {
+          if(!form.voucher_date) return ElMessage.warning('请选择凭证日期');
+          if(!entries.some(e=>e.subject_id)) return ElMessage.warning('请至少录入一条分录');
+          if(!balanced.value) return ElMessage.warning('借贷不平衡，请检查');
+          const v = {
+            id: editingId.value || Date.now(),
+            voucher_no: form.voucher_no || '记-' + (store.vouchers.length+1),
+            voucher_date: form.voucher_date,
+            period: form.period, creator: form.creator,
+            status: s === 'audit' ? '已审核' : '草稿',
+            attachment_count: form.attachment_count,
+            created_time: new Date().toLocaleString('zh-CN'),
+            entries: entries.map((e,i)=>({...e, sort:i}))
+          };
+          if(editingId.value) store.updateVoucher(v);
+          else store.addVoucher(v);
+          ElMessage.success('保存成功');
+          if(s==='new') resetForm();
+        }
+        function handleKey(e) {
+          if((e.ctrlKey||e.metaKey) && e.key==='s') { e.preventDefault(); saveVoucher('draft'); }
+          if((e.ctrlKey||e.metaKey) && e.key==='Enter') { e.preventDefault(); addRow(); }
+        }
+        onMounted(()=>{ document.addEventListener('keydown',handleKey); });
+        onUnmounted(()=>{ document.removeEventListener('keydown',handleKey); });
+
+        return { store, form, entries, totalDebit, totalCredit, balanced, addRow, removeRow, onSubjectSelect, filterSubjects, autoDiff, saveVoucher, resetForm };
+      },
+      template: `
+        <div>
+          <div class="page-title"><el-icon><edit-pen /></el-icon>录凭证</div>
+          <div class="card voucher-preview">
+            <h3>记账凭证</h3>
+            <el-form :model="form" label-width="90px" inline>
+              <el-form-item label="凭证字号">
+                <el-input v-model="form.voucher_no" placeholder="记-X" style="width:140px"></el-input>
+              </el-form-item>
+              <el-form-item label="凭证日期">
+                <el-date-picker v-model="form.voucher_date" type="date" value-format="YYYY-MM-DD" style="width:150px"></el-date-picker>
+              </el-form-item>
+              <el-form-item label="会计期间">
+                <el-input v-model="form.period" disabled style="width:120px"></el-input>
+              </el-form-item>
+              <el-form-item label="附件张数">
+                <el-input-number v-model="form.attachment_count" :min="0" style="width:110px"></el-input-number>
+              </el-form-item>
+              <el-form-item label="制单人">
+                <el-input v-model="form.creator" disabled style="width:100px"></el-input>
+              </el-form-item>
+            </el-form>
+            <div style="margin-bottom:8px;font-weight:600;color:#606266;display:grid;grid-template-columns:2fr 2.5fr 1fr 1fr 40px;gap:8px;padding:0 8px;">
+              <span>摘要</span><span>科目</span><span>借方</span><span>贷方</span><span></span>
+            </div>
+            <div v-for="(entry,idx) in entries" :key="idx" class="entry-row">
+              <el-input v-model="entry.summary" placeholder="摘要" @keydown.enter.prevent="$event.target.blur()"></el-input>
+              <el-select-v2 v-model="entry.subject_id" :options="filterSubjects('').map(s=>({value:s.code,label:s.code+' '+s.name}))" placeholder="选择科目" filterable clearable style="width:100%" @change="onSubjectSelect(idx,$event)">
+                <template #default="{item}">
+                  <div class="subject-option"><span>{{item.label}}</span><span class="subject-code">{{store.subjects.find(s=>s.code===item.value)?.category}}</span></div>
+                </template>
+              </el-select-v2>
+              <el-input-number v-model="entry.debit" :min="0" :controls="false" :precision="2" placeholder="借方" style="width:100%"></el-input-number>
+              <el-input-number v-model="entry.credit" :min="0" :controls="false" :precision="2" placeholder="贷方" style="width:100%"></el-input-number>
+              <el-button type="danger" link @click="removeRow(idx)"><el-icon><delete /></el-icon></el-button>
+            </div>
+            <div class="balance-tip" :class="{unbalanced:!balanced}">
+              <span>合计：借方 <b class="amount debit">¥{{totalDebit.toFixed(2)}}</b> &nbsp; 贷方 <b class="amount credit">¥{{totalCredit.toFixed(2)}}</b></span>
+              <span>{{balanced?'借贷平衡 ✅':'借贷不平衡 ❌'}}</span>
+            </div>
+            <div class="toolbar" style="margin-top:16px;">
+              <el-button type="primary" @click="saveVoucher('draft')">保存</el-button>
+              <el-button @click="saveVoucher('new')">保存并新增</el-button>
+              <el-button type="success" @click="saveVoucher('audit')">保存并审核</el-button>
+              <el-button @click="autoDiff">借贷自动补差</el-button>
+              <el-button @click="addRow" icon="plus">新增分录 (Ctrl+Enter)</el-button>
+              <el-button @click="resetForm">清空</el-button>
+            </div>
+            <div style="margin-top:12px;color:#909399;font-size:12px;">快捷键：Ctrl+S 保存草稿 &nbsp;|&nbsp; Ctrl+Enter 新增行 &nbsp;|&nbsp; Tab/Enter 跳转</div>
+          </div>
+        </div>
+      `
+    };
+
+    // ===== 组件：查凭证 =====
+    const VoucherQuery = {
+      props: ['store'],
+      setup(props) {
+        const store=props.store;
+        const query=reactive({no:'',date:'',summary:'',subject:'',status:''});
+        const page=reactive({current:1,size:10});
+        const filtered=computed(()=>{
+          return store.vouchers.filter(v=>{
+            if(query.no && !v.voucher_no.includes(query.no)) return false;
+            if(query.date && v.voucher_date!==query.date) return false;
+            if(query.summary && !v.entries.some(e=>e.summary.includes(query.summary))) return false;
+            if(query.subject && !v.entries.some(e=>e.subject_name.includes(query.subject)||e.subject_id==query.subject)) return false;
+            if(query.status && v.status!==query.status) return false;
+            return true;
+          });
+        });
+        const paged=computed(()=>{
+          const start=(page.current-1)*page.size;
+          return filtered.value.slice(start,start+page.size);
+        });
+        function audit(v) { v.status='已审核'; store.updateVoucher(v); ElMessage.success('审核成功'); }
+        function del(v){ ElMessageBox.confirm('确定删除？','提示',{type:'warning'}).then(()=>{ store.deleteVoucher(v.id); }); }
+        function exportExcel(){ ElMessage.info('导出功能为演示，实际可调用 SheetJS 生成 xlsx'); }
+        return { store, query, filtered, paged, page, audit, del, exportExcel };
+      },
+      template: `
+        <div>
+          <div class="page-title"><el-icon><search /></el-icon>查凭证</div>
+          <div class="card toolbar">
+            <el-input v-model="query.no" placeholder="凭证号" style="width:140px"></el-input>
+            <el-input v-model="query.summary" placeholder="摘要" style="width:160px"></el-input>
+            <el-input v-model="query.subject" placeholder="科目/编码" style="width:160px"></el-input>
+            <el-select v-model="query.status" placeholder="状态" clearable style="width:120px"><el-option label="草稿" value="草稿"></el-option><el-option label="已审核" value="已审核"></el-option></el-select>
+            <el-button type="primary" icon="search">查询</el-button>
+            <el-button @click="Object.assign(query,{no:'',date:'',summary:'',subject:'',status:''})">重置</el-button>
+            <el-button @click="exportExcel" icon="download">导出Excel</el-button>
+          </div>
+          <div class="card">
+            <el-table :data="paged" border stripe size="small">
+              <el-table-column type="expand">
+                <template #default="{row}">
+                  <el-table :data="row.entries" :border="true" size="small" style="margin:8px">
+                    <el-table-column prop="summary" label="摘要" width="180"></el-table-column>
+                    <el-table-column prop="subject_name" label="科目"></el-table-column>
+                    <el-table-column prop="debit" label="借方"><template #default="{row:e}"><span class="amount debit">{{e.debit?e.debit.toFixed(2):''}}</span></template></el-table-column>
+                    <el-table-column prop="credit" label="贷方"><template #default="{row:e}"><span class="amount credit">{{e.credit?e.credit.toFixed(2):''}}</span></template></el-table-column>
+                  </el-table>
+                </template>
+              </el-table-column>
+              <el-table-column prop="voucher_no" label="凭证号" width="100"></el-table-column>
+              <el-table-column prop="voucher_date" label="日期" width="120"></el-table-column>
+              <el-table-column prop="period" label="期间" width="90"></el-table-column>
+              <el-table-column label="借方合计"><template #default="{row}"><span class="amount">{{row.entries.reduce((a,e)=>a+(+e.debit||0),0).toFixed(2)}}</span></template></el-table-column>
+              <el-table-column label="贷方合计"><template #default="{row}"><span class="amount">{{row.entries.reduce((a,e)=>a+(+e.credit||0),0).toFixed(2)}}</span></template></el-table-column>
+              <el-table-column prop="creator" label="制单人" width="90"></el-table-column>
+              <el-table-column prop="status" label="状态" width="90"><template #default="{row}"><el-tag :type="row.status==='已审核'?'success':'info'">{{row.status}}</el-tag></template></el-table-column>
+              <el-table-column label="操作" width="140">
+                <template #default="{row}">
+                  <el-button v-if="row.status!=='已审核'" type="success" link size="small" @click="audit(row)">审核</el-button>
+                  <el-button type="danger" link size="small" @click="del(row)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+            <el-pagination v-model:current-page="page.current" :page-size="page.size" :total="filtered.length" layout="total,prev,pager,next" style="margin-top:12px"></el-pagination>
+          </div>
+        </div>
+      `
+    };
+
+    // ===== 组件：明细账 =====
+    const DetailLedger = {
+      props: ['store'],
+      setup(props) {
+        const store=props.store;
+        const subjectCode=ref('');
+        const start=ref(store.period+'-01');
+        const end=ref(store.period+'-31');
+        const list=computed(()=>{
+          if(!subjectCode.value) return [];
+          const target=store.subjects.find(s=>s.code===subjectCode.value)?.name;
+          if(!target) return [];
+          let balance=0; const dir=store.subjects.find(s=>s.code===subjectCode.value).direction;
+          const rows=[];
+          store.vouchers.filter(v=>v.status==='已审核' && v.voucher_date>=start.value && v.voucher_date<=end.value).sort((a,b)=>a.voucher_date.localeCompare(b.voucher_date)).forEach(v=>{
+            v.entries.filter(e=>e.subject_name===target||e.subject_name.startsWith(target+'-')).forEach(e=>{
+              const d=+e.debit||0, c=+e.credit||0;
+              balance = dir==='借' ? balance+d-c : balance+c-d;
+              rows.push({date:v.voucher_date,voucher_no:v.voucher_no,summary:e.summary,debit:d,credit:c,balance});
+            });
+          });
+          return rows;
+        });
+        return { store, subjectCode, start, end, list };
+      },
+      template: `
+        <div>
+          <div class="page-title"><el-icon><list /></el-icon>明细账</div>
+          <div class="card toolbar">
+            <el-select v-model="subjectCode" placeholder="选择科目" clearable style="width:280px">
+              <el-option v-for="s in store.subjects" :key="s.code" :label="s.code+' '+s.name" :value="s.code"></el-option>
+            </el-select>
+            <el-date-picker v-model="start" type="date" value-format="YYYY-MM-DD" placeholder="开始日期" style="width:150px"></el-date-picker>
+            <span>至</span>
+            <el-date-picker v-model="end" type="date" value-format="YYYY-MM-DD" placeholder="结束日期" style="width:150px"></el-date-picker>
+            <el-button type="primary" icon="search">查询</el-button>
+            <el-button icon="printer">打印</el-button>
+            <el-button icon="download">导出Excel</el-button>
+          </div>
+          <div class="card">
+            <el-table :data="list" border stripe size="small" show-summary :summary-method="({columns,data})=>['合计','','',data.reduce((a,r)=>a+r.debit,0).toFixed(2),data.reduce((a,r)=>a+r.credit,0).toFixed(2),'']">
+              <el-table-column prop="date" label="日期" width="120"></el-table-column>
+              <el-table-column prop="voucher_no" label="凭证号" width="100"></el-table-column>
+              <el-table-column prop="summary" label="摘要"></el-table-column>
+              <el-table-column prop="debit" label="借方"><template #default="{row}"><span class="amount debit">{{row.debit?row.debit.toFixed(2):''}}</span></template></el-table-column>
+              <el-table-column prop="credit" label="贷方"><template #default="{row}"><span class="amount credit">{{row.credit?row.credit.toFixed(2):''}}</span></template></el-table-column>
+              <el-table-column prop="balance" label="余额"><template #default="{row}"><span class="amount">{{row.balance.toFixed(2)}}</span></template></el-table-column>
+            </el-table>
+          </div>
+        </div>
+      `
+    };
+
+    // ===== 组件：科目余额表 =====
+    const SubjectBalance = {
+      props: ['store'],
+      setup(props) {
+        const store=props.store;
+        const expanded=ref([]);
+        const data=computed(()=>{
+          return store.subjects.map(s=>{
+            const b=subjectBalance(store,s.code);
+            return { code:s.code, name:s.name, category:s.category, direction:s.direction, debit:b.debit, credit:b.credit, balance:b.balance };
+          });
+        });
+        return { store, data, expanded };
+      },
+      template: `
+        <div>
+          <div class="page-title"><el-icon><histogram /></el-icon>科目余额表</div>
+          <div class="card toolbar">
+            <span>会计期间：{{store.period}}</span>
+            <el-button icon="printer">打印</el-button>
+            <el-button icon="download">导出Excel</el-button>
+          </div>
+          <div class="card">
+            <el-table :data="data" border stripe size="small" row-key="code" default-expand-all>
+              <el-table-column prop="code" label="科目编码" width="120"></el-table-column>
+              <el-table-column prop="name" label="科目名称"></el-table-column>
+              <el-table-column prop="category" label="类别" width="100"></el-table-column>
+              <el-table-column prop="direction" label="方向" width="70"></el-table-column>
+              <el-table-column prop="debit" label="借方发生额"><template #default="{row}"><span class="amount debit">{{row.debit.toFixed(2)}}</span></template></el-table-column>
+              <el-table-column prop="credit" label="贷方发生额"><template #default="{row}"><span class="amount credit">{{row.credit.toFixed(2)}}</span></template></el-table-column>
+              <el-table-column prop="balance" label="期末余额"><template #default="{row}"><span class="amount">{{row.balance.toFixed(2)}}</span></template></el-table-column>
+            </el-table>
+          </div>
+        </div>
+      `
+    };
+
+    // ===== 组件：总分类账 =====
+    const GeneralLedger = {
+      props: ['store'],
+      setup(props) {
+        const store=props.store;
+        const period=ref(store.period);
+        const list=computed(()=>{
+          const firstLevel = store.subjects.filter(s=>s.code.length<=4);
+          return firstLevel.map(s=>{
+            const b=subjectBalance(store,s.code);
+            return {code:s.code,name:s.name,direction:s.direction,...b};
+          });
+        });
+        return { store, period, list };
+      },
+      template: `
+        <div>
+          <div class="page-title"><el-icon><reading /></el-icon>总分类账</div>
+          <div class="card toolbar">
+            <el-select v-model="period" placeholder="月份" style="width:140px"><el-option label="2026-07" value="2026-07"></el-option><el-option label="2026-06" value="2026-06"></el-option></el-select>
+            <el-button icon="printer">打印</el-button>
+            <el-button icon="download">导出Excel</el-button>
+          </div>
+          <div class="card">
+            <el-table :data="list" border stripe size="small">
+              <el-table-column prop="code" label="科目编码" width="120"></el-table-column>
+              <el-table-column prop="name" label="科目名称"></el-table-column>
+              <el-table-column prop="direction" label="方向" width="70"></el-table-column>
+              <el-table-column prop="debit" label="本期借方"><template #default="{row}"><span class="amount debit">{{row.debit.toFixed(2)}}</span></template></el-table-column>
+              <el-table-column prop="credit" label="本期贷方"><template #default="{row}"><span class="amount credit">{{row.credit.toFixed(2)}}</span></template></el-table-column>
+              <el-table-column prop="balance" label="期末余额"><template #default="{row}"><span class="amount">{{row.balance.toFixed(2)}}</span></template></el-table-column>
+            </el-table>
+          </div>
+        </div>
+      `
+    };
+
+    // ===== 组件：凭证附件 =====
+    const VoucherAttach = {
+      props: ['store'],
+      setup(props) {
+        const fileList=ref([]);
+        function upload(f){ ElMessage.success('模拟上传成功：'+f.name); }
+        return { fileList, upload };
+      },
+      template: `
+        <div>
+          <div class="page-title"><el-icon><paperclip /></el-icon>凭证附件</div>
+          <div class="card">
+            <el-upload drag action="#" :auto-upload="false" :on-change="upload" multiple>
+              <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+              <div class="el-upload__text">拖拽文件到此处或 <em>点击上传</em></div>
+              <template #tip><div class="el-upload__tip">支持 PDF / 图片 / Excel，演示环境不上传真实服务器</div></template>
+            </el-upload>
+          </div>
+          <div class="card">
+            <el-table :data="fileList" border size="small">
+              <el-table-column prop="name" label="文件名"></el-table-column>
+              <el-table-column prop="size" label="大小"></el-table-column>
+              <el-table-column label="操作"><template #default="{row}"><el-button link type="primary">预览</el-button><el-button link type="danger">删除</el-button></template></el-table-column>
+            </el-table>
+          </div>
+        </div>
+      `
+    };
+
+    // ===== 组件：智能凭证 =====
+    const SmartVoucher = {
+      props: ['store'],
+      setup(props) {
+        const store=props.store;
+        const invoiceText=ref('发票代码：4400123457 发票号码：2026070002 金额：100000.00 税额：13000.00 购买方：客户甲 销售方：演示公司');
+        const aiResult=ref('');
+        function generate(){
+          aiResult.value='识别到销项发票，建议生成凭证：\n借：应收账款-客户甲 113000.00\n贷：主营业务收入 100000.00\n贷：应交税费-应交增值税（销项税额） 13000.00';
+          ElMessage.success('AI 识别完成，请人工确认');
+        }
+        function saveAi(){
+          const v={ id: Date.now(), voucher_no: '记-'+(store.vouchers.length+1), voucher_date: new Date().toISOString().slice(0,10), period: store.period, creator: 'AI会计', status: '草稿', created_time: new Date().toLocaleString('zh-CN'), entries: [
+            {summary:'销售商品（AI生成）',subject_id:'1122',subject_name:'应收账款',debit:113000,credit:0,assist_item:'客户甲'},
+            {summary:'销售商品（AI生成）',subject_id:'6001',subject_name:'主营业务收入',debit:0,credit:100000},
+            {summary:'销售商品（AI生成）',subject_id:'222102',subject_name:'应交税费-应交增值税（销项税额）',debit:0,credit:13000}
+          ]};
+          store.addVoucher(v); ElMessage.success('已保存为草稿，请至查凭证审核');
+        }
+        return { invoiceText, aiResult, generate, saveAi };
+      },
+      template: `
+        <div>
+          <div class="page-title"><el-icon><magic-stick /></el-icon>智能凭证</div>
+          <div class="card ai-panel">
+            <h4 style="margin:0 0 12px;color:#409eff">AI 智能识别原始凭证 → 自动生成记账凭证</h4>
+            <el-input v-model="invoiceText" type="textarea" :rows="3" placeholder="粘贴发票文本或上传图片（演示）"></el-input>
+            <div style="margin-top:12px;">
+              <el-button type="primary" icon="magic-stick" @click="generate">AI 识别并生成凭证</el-button>
+              <el-button v-if="aiResult" @click="saveAi">保存为草稿</el-button>
+            </div>
+          </div>
+          <div class="card" v-if="aiResult">
+            <pre style="background:#f5f7fa;padding:12px;border-radius:4px;line-height:1.8">{{aiResult}}</pre>
+          </div>
+        </div>
+      `
+    };
+
+    // ===== 组件：期末处理 =====
+    const PeriodEnd = {
+      props: ['store'],
+      setup(props) {
+        const store=props.store;
+        const logs=ref(['2026-07-23 22:38 系统初始化','2026-07-23 22:38 加载演示数据成功']);
+        function carryForward(){
+          const v={ id: Date.now(), voucher_no: '结-'+(store.vouchers.length+1), voucher_date: store.period+'-31', period: store.period, creator: '系统', status: '草稿', created_time: new Date().toLocaleString('zh-CN'), entries: [
+            {summary:'结转损益-收入',subject_id:'6001',subject_name:'主营业务收入',debit:100000,credit:0},
+            {summary:'结转损益-收入',subject_id:'4103',subject_name:'本年利润',debit:0,credit:100000}
+          ]};
+          store.addVoucher(v);
+          logs.value.unshift(new Date().toLocaleString('zh-CN')+' 自动生成损益结转凭证 '+v.voucher_no);
+          ElMessage.success('已生成结转凭证');
+        }
+        function closePeriod(){
+          store.closed=true; store.save();
+          logs.value.unshift(new Date().toLocaleString('zh-CN')+' 执行期末结账');
+          ElMessage.success('结账成功');
+        }
+        return { store, logs, carryForward, closePeriod };
+      },
+      template: `
+        <div>
+          <div class="page-title"><el-icon><finished /></el-icon>期末处理</div>
+          <div class="card toolbar">
+            <el-button type="primary" @click="carryForward">期末结转 / 损益结转</el-button>
+            <el-button type="success" @click="closePeriod">结账</el-button>
+            <el-button>反结账</el-button>
+            <span style="color:#909399;margin-left:auto">当前期间：{{store.period}} {{store.closed?'（已结账）':'（未结账）'}}</span>
+          </div>
+          <div class="card">
+            <h4 style="margin-top:0">处理日志</h4>
+            <el-timeline>
+              <el-timeline-item v-for="l in logs" :key="l" type="primary" :icon="clock">{{l}}</el-timeline-item>
+            </el-timeline>
+          </div>
+        </div>
+      `
+    };
+
+    // ===== 组件：发票管理 =====
+    const InvoiceMgr = {
+      props: ['store'],
+      setup(props) {
+        const store=props.store;
+        const dialog=ref(false);
+        const form=reactive({type:'进项',invoice_code:'',invoice_number:'',buyer:'',seller:'',tax_rate:13,amount:0,tax_amount:0,invoice_date:'',status:'待认证'});
+        function add(){
+          form.tax_amount = (form.amount * form.tax_rate / 100).toFixed(2);
+          store.addInvoice({...form}); dialog.value=false; ElMessage.success('保存成功');
+        }
+        function calcTax(){ form.tax_amount=(form.amount*form.tax_rate/100).toFixed(2); }
+        return { store, dialog, form, add, calcTax };
+      },
+      template: `
+        <div>
+          <div class="page-title"><el-icon><tickets /></el-icon>发票管理</div>
+          <div class="card toolbar">
+            <el-button type="primary" icon="plus" @click="dialog=true">新增发票</el-button>
+            <el-button icon="upload">导入Excel</el-button>
+            <el-button icon="camera">OCR识别</el-button>
+            <el-button icon="download">导出</el-button>
+          </div>
+          <div class="card">
+            <el-table :data="store.invoices" border stripe size="small">
+              <el-table-column prop="type" label="类型" width="80"><template #default="{row}"><el-tag :type="row.type==='销项'?'success':'warning'">{{row.type}}</el-tag></template></el-table-column>
+              <el-table-column prop="invoice_code" label="发票代码" width="120"></el-table-column>
+              <el-table-column prop="invoice_number" label="发票号码" width="120"></el-table-column>
+              <el-table-column prop="buyer" label="购买方"></el-table-column>
+              <el-table-column prop="seller" label="销售方"></el-table-column>
+              <el-table-column prop="amount" label="金额"><template #default="{row}"><span class="amount">{{row.amount.toFixed(2)}}</span></template></el-table-column>
+              <el-table-column prop="tax_amount" label="税额"><template #default="{row}"><span class="amount">{{(+row.tax_amount).toFixed(2)}}</span></template></el-table-column>
+              <el-table-column prop="invoice_date" label="开票日期" width="110"></el-table-column>
+              <el-table-column prop="status" label="状态" width="100"></el-table-column>
+            </el-table>
+          </div>
+          <el-dialog v-model="dialog" title="新增发票" width="600px">
+            <el-form :model="form" label-width="100px">
+              <el-form-item label="发票类型"><el-radio-group v-model="form.type"><el-radio label="进项">进项</el-radio><el-radio label="销项">销项</el-radio></el-radio-group></el-form-item>
+              <el-form-item label="发票代码"><el-input v-model="form.invoice_code"></el-input></el-form-item>
+              <el-form-item label="发票号码"><el-input v-model="form.invoice_number"></el-input></el-form-item>
+              <el-form-item label="购买方"><el-input v-model="form.buyer"></el-input></el-form-item>
+              <el-form-item label="销售方"><el-input v-model="form.seller"></el-input></el-form-item>
+              <el-form-item label="税率"><el-input-number v-model="form.tax_rate" :min="0" :max="100" @change="calcTax"></el-input-number>%</el-form-item>
+              <el-form-item label="金额"><el-input-number v-model="form.amount" :precision="2" @change="calcTax"></el-input-number></el-form-item>
+              <el-form-item label="税额"><el-input v-model="form.tax_amount" disabled></el-input></el-form-item>
+              <el-form-item label="开票日期"><el-date-picker v-model="form.invoice_date" value-format="YYYY-MM-DD" type="date"></el-date-picker></el-form-item>
+            </el-form>
+            <template #footer><el-button @click="dialog=false">取消</el-button><el-button type="primary" @click="add">保存</el-button></template>
+          </el-dialog>
+        </div>
+      `
+    };
+
+    // ===== 组件：增值税 =====
+    const VAT = {
+      props: ['store'],
+      setup(props) {
+        const store=props.store;
+        const outputTax = computed(()=>store.outputTax);
+        const inputTax = computed(()=>store.inputTax);
+        const net = computed(()=>store.netVat);
+        const chartRef=ref(null);
+        onMounted(()=>{
+          nextTick(()=>{
+            if(!chartRef.value) return;
+            const chart=echarts.init(chartRef.value);
+            chart.setOption({
+              tooltip:{},
+              legend:{data:['销项税额','进项税额','应纳税额']},
+              xAxis:{data:['7月']},
+              yAxis:{},
+              series:[
+                {name:'销项税额',type:'bar',data:[outputTax.value]},
+                {name:'进项税额',type:'bar',data:[inputTax.value]},
+                {name:'应纳税额',type:'bar',data:[net.value>0?net.value:0]}
+              ]
+            });
+          });
+        });
+        return { store, outputTax, inputTax, net, chartRef };
+      },
+      template: `
+        <div>
+          <div class="page-title"><el-icon><coin /></el-icon>增值税</div>
+          <div class="stat-grid">
+            <div class="stat-card red"><div class="stat-label">销项税额</div><div class="stat-value amount">¥{{outputTax.toFixed(2)}}</div></div>
+            <div class="stat-card green"><div class="stat-label">进项税额</div><div class="stat-value amount">¥{{inputTax.toFixed(2)}}</div></div>
+            <div class="stat-card orange"><div class="stat-label">应纳增值税额</div><div class="stat-value amount">¥{{net>0?net.toFixed(2):'0.00'}}</div></div>
+            <div class="stat-card"><div class="stat-label">留抵税额</div><div class="stat-value amount">¥{{net<0?(-net).toFixed(2):'0.00'}}</div></div>
+          </div>
+          <div class="card"><div ref="chartRef" style="height:300px"></div></div>
+          <div class="card">
+            <h4 style="margin-top:0">增值税汇总表</h4>
+            <el-table :data="[{item:'销项税额',amount:outputTax},{item:'进项税额',amount:inputTax},{item:'应纳增值税',amount:net>0?net:0},{item:'期末留抵',amount:net<0?-net:0}]" border size="small">
+              <el-table-column prop="item" label="项目"></el-table-column>
+              <el-table-column prop="amount" label="金额"><template #default="{row}"><span class="amount">{{row.amount.toFixed(2)}}</span></template></el-table-column>
+            </el-table>
+          </div>
+        </div>
+      `
+    };
+
+    // ===== 组件：企业所得税 =====
+    const CIT = {
+      props: ['store'],
+      setup(props) {
+        const store=props.store;
+        const revenue=computed(()=>{
+          return store.vouchers.filter(v=>v.status==='已审核').reduce((a,v)=>a+v.entries.filter(e=>e.subject_name==='主营业务收入'||e.subject_name==='其他业务收入').reduce((b,e)=>b+(+e.credit||0),0),0);
+        });
+        const cost=computed(()=>store.vouchers.filter(v=>v.status==='已审核').reduce((a,v)=>a+v.entries.filter(e=>e.subject_name==='主营业务成本').reduce((b,e)=>b+(+e.debit||0),0),0));
+        const expense=computed(()=>store.vouchers.filter(v=>v.status==='已审核').reduce((a,v)=>a+v.entries.filter(e=>e.subject_name.startsWith('销售费用')||e.subject_name.startsWith('管理费用')||e.subject_name.startsWith('财务费用')).reduce((b,e)=>b+(+e.debit||0),0),0));
+        const profit=computed(()=>revenue.value-cost.value-expense.value);
+        const taxRate=ref(25);
+        const adjustment=ref(0);
+        const taxable=computed(()=>Math.max(0,profit.value+adjustment.value));
+        const tax=computed(()=>taxable.value*taxRate.value/100);
+        return { revenue, cost, expense, profit, taxRate, adjustment, taxable, tax };
+      },
+      template: `
+        <div>
+          <div class="page-title"><el-icon><office-building /></el-icon>企业所得税</div>
+          <div class="stat-grid">
+            <div class="stat-card"><div class="stat-label">收入总额</div><div class="stat-value amount">¥{{revenue.toFixed(2)}}</div></div>
+            <div class="stat-card red"><div class="stat-label">成本</div><div class="stat-value amount">¥{{cost.toFixed(2)}}</div></div>
+            <div class="stat-card red"><div class="stat-label">费用</div><div class="stat-value amount">¥{{expense.toFixed(2)}}</div></div>
+            <div class="stat-card orange"><div class="stat-label">利润总额</div><div class="stat-value amount">¥{{profit.toFixed(2)}}</div></div>
+          </div>
+          <div class="card">
+            <h4 style="margin-top:0">所得税测算</h4>
+            <el-form label-width="120px" inline>
+              <el-form-item label="利润总额"><el-input :model-value="profit.toFixed(2)" disabled></el-input></el-form-item>
+              <el-form-item label="纳税调整"><el-input-number v-model="adjustment" :precision="2"></el-input-number></el-form-item>
+              <el-form-item label="应纳税所得额"><el-input :model-value="taxable.toFixed(2)" disabled></el-input></el-form-item>
+              <el-form-item label="税率"><el-input-number v-model="taxRate" :min="0" :max="100"></el-input-number>%</el-form-item>
+              <el-form-item label="应纳所得税"><el-input :model-value="tax.toFixed(2)" disabled></el-input></el-form-item>
+            </el-form>
+          </div>
+        </div>
+      `
+    };
+
+    // ===== 组件：纳税申报 =====
+    const TaxDeclare = {
+      props: ['store'],
+      setup(props) {
+        const store=props.store;
+        const declares=computed(()=>[
+          {month:store.period,tax:'增值税',status:store.netVat>=0?'待申报':'无应纳税',amount:Math.max(0,store.netVat)},
+          {month:store.period,tax:'企业所得税',status:'待申报',amount:0},
+          {month:store.period,tax:'印花税',status:'待申报',amount:0}
+        ]);
+        function generate(row){ ElMessage.success('已生成 '+row.tax+' 申报表草稿'); row.status='已生成'; }
+        return { declares, generate };
+      },
+      template: `
+        <div>
+          <div class="page-title"><el-icon><document-checked /></el-icon>纳税申报</div>
+          <div class="card toolbar">
+            <el-button type="primary" icon="document-add">一键生成申报表</el-button>
+            <el-button icon="upload">上传附件</el-button>
+          </div>
+          <div class="card">
+            <el-table :data="declares" border stripe size="small">
+              <el-table-column prop="month" label="月份" width="100"></el-table-column>
+              <el-table-column prop="tax" label="税种"></el-table-column>
+              <el-table-column prop="amount" label="应纳税额"><template #default="{row}"><span class="amount">{{row.amount.toFixed(2)}}</span></template></el-table-column>
+              <el-table-column prop="status" label="状态" width="120"><template #default="{row}"><el-tag :type="row.status==='待申报'?'warning':'success'">{{row.status}}</el-tag></template></el-table-column>
+              <el-table-column label="操作" width="180"><template #default="{row}"><el-button link type="primary" @click="generate(row)">生成</el-button><el-button link type="success">申报</el-button><el-button link>历史</el-button></template></el-table-column>
+            </el-table>
+          </div>
+        </div>
+      `
+    };
+
+    // ===== 组件：税务风险 =====
+    const TaxRisk = {
+      props: ['store'],
+      setup(props) {
+        const store=props.store;
+        const score=ref(85);
+        const level=computed(()=>score.value>=80?'low':score.value>=60?'medium':'high');
+        const risks=ref([
+          {name:'发票异常',status:'正常',desc:'进销项发票品名匹配正常'},
+          {name:'税负异常',status:'正常',desc:'增值税税负率在合理区间'},
+          {name:'收入异常',status:'低风险',desc:'本月收入环比增长在20%以内'},
+          {name:'连续亏损',status:'正常',desc:'本年利润为正'}
+        ]);
+        function scan(){ ElMessage.success('风险扫描完成'); score.value=Math.floor(70+Math.random()*25); }
+        return { score, level, risks, scan };
+      },
+      template: `
+        <div>
+          <div class="page-title"><el-icon><warning /></el-icon>税务风险</div>
+          <div class="card" style="display:flex;align-items:center;gap:24px">
+            <div style="text-align:center">
+              <div class="risk-score" :class="{warn:level==='medium',danger:level==='high'}">{{score}}</div>
+              <div style="color:#909399">风险评分</div>
+            </div>
+            <div>
+              <h3 style="margin:0 0 8px">综合风险等级：<el-tag :type="level==='low'?'success':level==='medium'?'warning':'danger'">{{level==='low'?'低风险':level==='medium'?'中风险':'高风险'}}</el-tag></h3>
+              <p style="color:#606266;margin:0">系统基于发票、税负、收入、利润等多维度指标自动评估税务健康度。</p>
+            </div>
+            <el-button type="primary" style="margin-left:auto" icon="refresh" @click="scan">重新扫描</el-button>
+          </div>
+          <div class="card">
+            <el-table :data="risks" border stripe size="small">
+              <el-table-column prop="name" label="风险项" width="140"></el-table-column>
+              <el-table-column prop="status" label="状态" width="120"><template #default="{row}"><el-tag :type="row.status==='正常'?'success':'warning'">{{row.status}}</el-tag></template></el-table-column>
+              <el-table-column prop="desc" label="说明"></el-table-column>
+              <el-table-column label="建议" width="200"><template #default="{row}"><el-button link type="primary">查看详情</el-button></template></el-table-column>
+            </el-table>
+          </div>
+        </div>
+      `
+    };
+
+    // ===== 组件：税务资料 =====
+    const TaxDocs = {
+      template: `
+        <div>
+          <div class="page-title"><el-icon><folder /></el-icon>税务资料</div>
+          <div class="card">
+            <el-empty description="税务资料库">
+              <template #description><p>可存放开票货物及服务、票种类型、纳税鉴定等基础资料</p></template>
+              <el-button type="primary">新增资料</el-button>
+            </el-empty>
+          </div>
+        </div>
+      `
+    };
+
+    const VIEW_MAP = {
+      'voucher-entry': VoucherEntry, 'voucher-query': VoucherQuery, 'detail-ledger': DetailLedger,
+      'subject-balance': SubjectBalance, 'general-ledger': GeneralLedger, 'voucher-attach': VoucherAttach,
+      'smart-voucher': SmartVoucher, 'period-end': PeriodEnd,
+      'invoice-mgr': InvoiceMgr, 'vat': VAT, 'cit': CIT, 'tax-declare': TaxDeclare, 'tax-risk': TaxRisk, 'tax-docs': TaxDocs
+    };
+
+    app.use(createPinia());
+    app.use(ElementPlus);
+    for (const [key, component] of Object.entries(ElementPlusIconsVue)) { app.component(key, component); }
+    app.mount('#app');
+  </script>
+</body>
+</html>

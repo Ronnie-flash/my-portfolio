@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#4CAF50">
+    <title>吃药闹钟</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app">
+        <header class="header">
+            <div class="header-row">
+                <img src="icons/icon-med.jpg" class="header-icon" alt="">
+                <div class="header-text">
+                    <h1>吃药闹钟</h1>
+                    <p class="subtitle" id="headerSubtitle">吉伊提醒你该吃药了</p>
+                </div>
+                <div class="header-greeting" id="headerGreeting" style="display:none">
+                    <div class="greeting-line1" id="greetingLine1"></div>
+                    <div class="greeting-line2">祝你早日康复</div>
+                    <div class="header-version" id="headerVersion">v2026.07.16.3</div>
+                </div>
+            </div>
+        </header>
+
+        <main class="main">
+            <!-- Med Section -->
+            <div id="medSection">
+                <div class="tabs">
+                    <button class="tab active" data-tab="single">💊 单品</button>
+                    <button class="tab" data-tab="pack">📦 组合</button>
+                    <button class="tab" data-tab="archive">📦 存档</button>
+                </div>
+
+                <div class="tab-content active" id="tabSingle">
+                    <section class="add-section">
+                        <button class="btn-add" id="btnAdd">+ 添加药品</button>
+                    </section>
+                    <section class="med-list" id="medList">
+                        <p class="empty-msg">还没有药品，点上方按钮添加</p>
+                    </section>
+                </div>
+
+                <div class="tab-content" id="tabPack">
+                    <section class="add-section">
+                        <button class="btn-add" id="btnAddPack">+ 添加组合</button>
+                    </section>
+                    <section class="pack-list" id="packList">
+                        <p class="empty-msg">还没有组合，点上方按钮添加</p>
+                    </section>
+                </div>
+
+                <div class="tab-content" id="tabArchive">
+                    <section class="med-list" id="archiveList">
+                        <p class="empty-msg">暂无存档药品</p>
+                    </section>
+                </div>
+            </div>
+
+            <!-- Analytics Section -->
+            <div id="analyticsSection" style="display:none">
+                <h2 class="section-title">📊 用药分析</h2>
+                <div id="analyticsContent">
+                    <p class="empty-msg">暂无数据</p>
+                </div>
+            </div>
+        </main>
+
+        <nav class="bottom-nav">
+            <button class="nav-item active" data-nav="med">💊 吃药</button>
+            <button class="nav-item" data-nav="analytics">📊 分析</button>
+        </nav>
+
+        <!-- Single Med Modal -->
+        <div class="modal-overlay" id="modalOverlay">
+            <div class="modal">
+                <h2 id="modalTitle">添加药品</h2>
+                <form id="medForm">
+                    <div class="form-group">
+                        <label for="medName">药品名 <span class="required">*</span></label>
+                        <input type="text" id="medName" placeholder="如：阿莫西林" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="medDosage">剂量</label>
+                        <input type="text" id="medDosage" placeholder="如：0.25g / 2粒">
+                    </div>
+                    <div class="form-group">
+                        <label for="medInterval">间隔时间（小时） <span class="required">*</span></label>
+                        <input type="number" id="medInterval" placeholder="如：8" step="0.1" min="0.1" value="8" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="medMaxTimes">提醒次数</label>
+                        <input type="number" id="medMaxTimes" placeholder="0 = 不限次数" min="0" value="0">
+                    </div>
+                    <div class="form-group" id="completeActionGroup" style="display:none">
+                        <label>完成后</label>
+                        <div class="remind-mode">
+                            <label><input type="radio" name="completeAction" value="delete" checked> 删除此药品</label>
+                            <label><input type="radio" name="completeAction" value="archive"> 存档此药品</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="medNotes">备注</label>
+                        <input type="text" id="medNotes" placeholder="如：饭后服用">
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-cancel" id="btnCancel">取消</button>
+                        <button type="submit" class="btn-save">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Pack Modal -->
+        <div class="modal-overlay" id="packModalOverlay">
+            <div class="modal">
+                <h2 id="packModalTitle">添加组合</h2>
+                <form id="packForm">
+                    <div class="form-group">
+                        <label for="packName">组合名称 <span class="required">*</span></label>
+                        <input type="text" id="packName" placeholder="如：感冒套餐" required>
+                    </div>
+                    <div class="form-group">
+                        <label>提醒方式</label>
+                        <div class="remind-mode">
+                            <label><input type="radio" name="remindMode" value="unified" checked> 统一提醒</label>
+                            <label><input type="radio" name="remindMode" value="individual"> 分别提醒</label>
+                        </div>
+                    </div>
+                    <div class="form-group" id="packIntervalGroup">
+                        <label for="packInterval">间隔时间（小时） <span class="required">*</span></label>
+                        <input type="number" id="packInterval" step="0.1" min="0.1" value="8" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="packMaxTimes">提醒次数</label>
+                        <input type="number" id="packMaxTimes" placeholder="0 = 不限次数" min="0" value="0">
+                    </div>
+                    <div class="form-group" id="packCompleteActionGroup" style="display:none">
+                        <label>完成后</label>
+                        <div class="remind-mode">
+                            <label><input type="radio" name="packCompleteAction" value="delete" checked> 删除此组合</label>
+                            <label><input type="radio" name="packCompleteAction" value="archive"> 存档此组合</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>药品清单</label>
+                        <div id="packMedRows"></div>
+                        <button type="button" class="btn-add-row" id="btnAddPackMed">+ 添加药品</button>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-cancel" id="btnCancelPack">取消</button>
+                        <button type="submit" class="btn-save">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Welcome Modal -->
+    <div class="modal-overlay" id="welcomeOverlay">
+        <div class="modal">
+            <h2>👋 欢迎使用吃药闹钟</h2>
+            <p style="font-size:0.9rem;color:#666;margin-bottom:20px;">你好，请问你叫什么？</p>
+            <form id="welcomeForm">
+                <div class="form-group">
+                    <input type="text" id="userNameInput" placeholder="请输入你的名字" required autofocus>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn-save">确认</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

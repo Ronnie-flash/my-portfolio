@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>FreeModel Radar — 在免费消失之前，找到它</title>
+<meta name="description" content="国内外 AI 免费模型、免费 API、限时免费活动、Token 赠送与兑换码聚合雷达。实时发现现在什么 AI 可以免费用。">
+<meta name="author" content="FreeModel Radar">
+<meta name="theme-color" content="#0A0B0D" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+
+<!-- Open Graph / 社交分享卡片（og:image 上线时换成真实图片 URL） -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="FreeModel Radar">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:title" content="FreeModel Radar — 在免费消失之前，找到它">
+<meta property="og:description" content="国内外 AI 免费模型、免费 API、限时活动、Token 赠送与兑换码聚合雷达。只回答一个问题：现在什么能免费用。">
+<meta property="og:image" content="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='630'%3E%3Crect width='1200' height='630' fill='%230A0B0D'/%3E%3Ccircle cx='600' cy='290' r='60' fill='%233FB950'/%3E%3Ccircle cx='600' cy='290' r='130' fill='none' stroke='%233FB950' stroke-opacity='.45' stroke-width='6'/%3E%3Ccircle cx='600' cy='290' r='200' fill='none' stroke='%233FB950' stroke-opacity='.2' stroke-width='6'/%3E%3Ctext x='600' y='470' font-family='sans-serif' font-size='58' font-weight='700' fill='%23E6E9EF' text-anchor='middle'%3EFreeModel Radar%3C/text%3E%3Ctext x='600' y='530' font-family='sans-serif' font-size='28' fill='%239099A6' text-anchor='middle'%3EFree AI, before it expires.%3C/text%3E%3C/svg%3E">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230A0B0D'/><circle cx='16' cy='16' r='4' fill='%233FB950'/><circle cx='16' cy='16' r='9' fill='none' stroke='%233FB950' stroke-opacity='.5' stroke-width='1.5'/><circle cx='16' cy='16' r='13.5' fill='none' stroke='%233FB950' stroke-opacity='.22' stroke-width='1.5'/></svg>">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<!-- 液态玻璃背景层：彩色光斑是所有玻璃材质折射内容的来源，纯装饰不参与交互。
+     用 radial-gradient 直接绘制（不用 filter:blur 的大色块），静态不重绘。 -->
+<div class="backdrop" aria-hidden="true"></div>
+
+<a class="skip-link" href="#main">跳到主要内容</a>
+
+<!-- ============================================================ HEADER -->
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="#/home" data-nav="home">
+      <span class="brand-mark" aria-hidden="true">F</span>
+      <span>FreeModel<span class="brand-dim">Radar</span></span>
+      <span class="brand-sub">Free AI, before it expires</span>
+    </a>
+
+    <button class="nav-toggle" id="navToggle" aria-expanded="false" aria-controls="nav" aria-label="展开导航菜单">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+        <rect x="2" y="3.5" width="12" height="1.6" rx=".8"/>
+        <rect x="2" y="7.2" width="12" height="1.6" rx=".8"/>
+        <rect x="2" y="10.9" width="12" height="1.6" rx=".8"/>
+      </svg>
+    </button>
+
+    <!-- 导航项由 app.js 依据 NAV 常量渲染，header / footer 共用同一份数据源 -->
+    <nav class="nav" id="nav" aria-label="主导航"></nav>
+
+    <div class="header-actions">
+      <div class="region" id="region" role="group" aria-label="地区筛选">
+        <button data-region="ALL"  aria-pressed="true">🌏 全部</button>
+        <button data-region="CN"   aria-pressed="false">🇨🇳 国内</button>
+        <button data-region="INTL" aria-pressed="false">🌍 海外</button>
+      </div>
+      <button class="icon-btn" data-action="ingest" title="数据接口 · Agent 导入（数据存在本机）" aria-label="数据接口">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path d="M8 1.2 12.4 5.8H10v3.4H6V5.8H3.6L8 1.2Z"/>
+          <rect x="2" y="11" width="12" height="1.7" rx=".85"/>
+        </svg>
+      </button>
+      <button class="icon-btn" id="themeToggle" title="切换主题 (T)" aria-label="切换主题">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1Zm0 1.5V13.5A5.5 5.5 0 0 1 8 2.5Z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+  <noscript>
+    <div class="wrap noscript-box">
+      <h1>需要开启 JavaScript 才能使用 FreeModel Radar</h1>
+      <p>本站是纯前端应用，模型库、筛选、热闻轮播与数据导入全部依赖脚本运行。
+         请在浏览器设置中启用 JavaScript 后刷新页面。</p>
+      <p class="faint">如果你是通过本地文件打开的，也可以直接双击 index.html —— 无需服务器。</p>
+    </div>
+  </noscript>
+
+  <!-- 首屏骨架：脚本加载与首次渲染期间占位，渲染完成后由 app.js 移除 -->
+  <div class="boot-skeleton wrap" id="bootSkeleton" aria-hidden="true">
+    <div class="sk sk-hero"></div>
+    <div class="sk sk-block"></div>
+    <div class="sk-grid">
+      <div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div>
+      <div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div>
+    </div>
+  </div>
+
+  <!-- 各视图由 app.js 渲染 -->
+  <section class="view" id="view-home"></section>
+  <section class="view" id="view-models"></section>
+  <section class="view" id="view-deals"></section>
+  <section class="view" id="view-codes"></section>
+  <section class="view" id="view-coding"></section>
+  <section class="view" id="view-launcher"></section>
+  <section class="view" id="view-radar"></section>
+</main>
+
+<!-- ============================================================ FOOTER -->
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <div class="brand foot-brand">
+          <span class="brand-mark" aria-hidden="true">F</span>
+          <span>FreeModel<span class="brand-dim">Radar</span></span>
+        </div>
+        <div class="foot-h">在免费消失之前，找到它</div>
+        <p class="foot-desc">
+          国内外 AI 免费模型、免费 API、限时活动、Token 赠送与兑换码聚合雷达。
+          核心价值不是模型导航，而是实时回答一个问题：<b class="hl">现在什么 AI 可以免费用。</b>
+        </p>
+      </div>
+      <div>
+        <div class="foot-h">浏览</div>
+        <ul class="foot-links" id="footNav"></ul>
+      </div>
+      <div>
+        <div class="foot-h">Free Score 构成</div>
+        <ul class="foot-links foot-score">
+          <li>免费额度 · 30</li>
+          <li>持续时间 · 20</li>
+          <li>模型能力 · 20</li>
+          <li>无需信用卡 · 15</li>
+          <li>无需兑换码 · 5</li>
+          <li>访问稳定性 · 10</li>
+        </ul>
+      </div>
+    </div>
+    <div class="disclaimer">
+      <b>数据说明：</b>本站权益信息为社区维护的种子数据，AI 厂商的免费政策变动极快，
+      所有额度、期限、兑换码均<b>以官方页面为准</b>。每条数据标注「最后验证」时间与可信度，
+      发现失效请点击卡片上的「已失效」，帮助其他人避坑。
+      <p class="foot-meta mono" id="footVersion"></p>
+    </div>
+  </div>
+</footer>
+
+<!-- ============================================================ RUNTIME -->
+<div class="toast-host" id="toastHost" aria-live="polite" aria-atomic="false"></div>
+
+<!-- 路由播报：SPA 切换视图时写入当前页面名，供屏幕阅读器朗读 -->
+<div class="sr-only" id="routeAnnouncer" role="status" aria-live="polite"></div>
+
+<button class="totop" id="toTop" title="回到顶部" aria-label="回到顶部">
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+    <path d="M8 3.5 13 9l-1.2 1.2L8 6.4 4.2 10.2 3 9l5-5.5Z"/>
+    <rect x="3" y="11.5" width="10" height="1.4" rx=".7"/>
+  </svg>
+</button>
+
+<div class="modal-host" id="modalHost" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal" id="modal">
+    <div class="modal-head">
+      <div>
+        <h2 class="modal-title" id="modalTitle"></h2>
+        <div class="modal-sub" id="modalSub"></div>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="modalClose" aria-label="关闭弹窗">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script src="assets/js/headlines.js" defer></script>
+<script src="assets/js/data.js" defer></script>
+<script src="assets/js/app.js" defer></script>
+</body>
+</html>

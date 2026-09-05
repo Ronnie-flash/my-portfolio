@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>广州荔湾 1001天 · 三条约会路线图</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; font-family: "PingFang SC", "Microsoft YaHei", sans-serif; }
+  #map { height: 100%; width: 100%; }
+
+  /* 顶部标题栏 */
+  .topbar {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 1000; background: rgba(255,255,255,0.95); border-radius: 14px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.18); padding: 10px 22px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: center;
+    max-width: 94vw;
+  }
+  .topbar h1 { font-size: 16px; color: #2c3e50; font-weight: 700; white-space: nowrap; }
+  .topbar .sub { font-size: 12px; color: #888; }
+
+  /* 图例面板 */
+  .legend {
+    position: absolute; top: 76px; right: 12px; z-index: 1000;
+    background: rgba(255,255,255,0.96); border-radius: 14px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.18); padding: 14px 16px;
+    width: 300px; max-width: calc(100vw - 24px);
+    max-height: calc(100vh - 100px); overflow-y: auto;
+  }
+  .legend h2 { font-size: 14px; color: #2c3e50; margin-bottom: 10px; border-bottom: 2px solid #f0f0f0; padding-bottom: 8px; }
+  .route-item { margin-bottom: 12px; }
+  .route-head { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+  .route-head input { accent-color: #2c3e50; width: 15px; height: 15px; cursor: pointer; }
+  .swatch { width: 26px; height: 5px; border-radius: 3px; flex-shrink: 0; }
+  .route-name { font-size: 13px; font-weight: 700; }
+  .route-score { font-size: 11px; margin-left: auto; white-space: nowrap; }
+  .route-desc { font-size: 11.5px; color: #666; margin: 6px 0 0 33px; line-height: 1.7; }
+  .route-desc b { color: #333; }
+
+  /* 序号圆点标记 */
+  .stop-number {
+    width: 24px; height: 24px; border-radius: 50%;
+    color: #fff; font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid #fff; box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+  }
+  .start-pin {
+    width: 30px; height: 30px; border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  }
+  .start-pin span { transform: rotate(45deg); color: #fff; font-size: 13px; font-weight: 700; }
+
+  .leaflet-popup-content { font-size: 13px; line-height: 1.7; }
+  .leaflet-popup-content b { font-size: 14px; }
+
+  @media (max-width: 640px) {
+    .topbar h1 { font-size: 13px; }
+    .legend { top: 70px; width: 250px; }
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div class="topbar">
+  <h1>💕 荔湾 1001天 · 三条约会路线</h1>
+  <span class="sub">点击路线/标记查看详情 · 右侧勾选可开关路线</span>
+</div>
+
+<div class="legend" id="legend">
+  <h2>🧭 路线总览（明天周六，商场营业至 22:00）</h2>
+
+  <div class="route-item" data-route="r1">
+    <label class="route-head">
+      <input type="checkbox" checked data-toggle="r1">
+      <span class="swatch" style="background:#e74c3c"></span>
+      <span class="route-name" style="color:#e74c3c">① 西城都荟线</span>
+      <span class="route-score">⭐⭐⭐⭐⭐ 9/10 最舒服</span>
+    </label>
+    <div class="route-desc">
+      <b>领展广场(西城都荟) → 沙面 → 永庆坊 → 晚餐 → 白鹅潭/珠江</b><br>
+      避暑最强，下午全程空调，晚上江景收尾。
+    </div>
+  </div>
+
+  <div class="route-item" data-route="r2">
+    <label class="route-head">
+      <input type="checkbox" checked data-toggle="r2">
+      <span class="swatch" style="background:#2980ff"></span>
+      <span class="route-name" style="color:#2980ff">② 荔湾广场线</span>
+      <span class="route-score">⭐⭐⭐⭐ 8.5/10 最热闹</span>
+    </label>
+    <div class="route-desc">
+      <b>荔湾广场 → 上下九 → 永庆坊 → 晚餐 → 沙面/珠江</b><br>
+      逛＋吃内容最多，西关小吃一条龙。
+    </div>
+  </div>
+
+  <div class="route-item" data-route="r3">
+    <label class="route-head">
+      <input type="checkbox" checked data-toggle="r3">
+      <span class="swatch" style="background:#27ae60"></span>
+      <span class="route-name" style="color:#27ae60">③ 恒宝广场线 🏆</span>
+      <span class="route-score">⭐⭐⭐⭐⭐ 9/10 最像纪念日</span>
+    </label>
+    <div class="route-desc">
+      <b>恒宝广场 → 永庆坊 → 恩宁路/荔枝湾 → 晚餐 → 沙面 → 珠江</b><br>
+      节奏最慢、最好拍，1001天首选。
+    </div>
+  </div>
+
+  <div class="route-desc" style="margin-left:0; margin-top:6px; padding-top:8px; border-top:1px dashed #ddd; color:#999;">
+    地图底图：OpenStreetMap（免费）。路线为步行示意，实际导航请以高德/百度为准。
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const C = { r1: '#e74c3c', r2: '#2980ff', r3: '#27ae60' };
+
+const map = L.map('map', { zoomControl: true }).setView([23.1140, 113.2410], 15);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+// ---------- 关键点位 ----------
+const stops = {
+  linkshow:  { name: '广州荔湾领展广场（西城都荟）', addr: '黄沙大道8号',        ll: [23.110406, 113.240316], note: '周六营业至 22:00' },
+  liwanPlaza:{ name: '荔湾广场',                     addr: '德星路9号（上下九）', ll: [23.116401, 113.248392], note: '周六营业至 22:00' },
+  hengbao:   { name: '恒宝广场',                     addr: '宝华路133号',        ll: [23.117591, 113.241417], note: '地铁1号线长寿路站旁，周六营业至 22:00' },
+  shamian:   { name: '沙面岛',                       addr: '沙面大街',           ll: [23.1097, 113.2370],    note: '欧式建筑群，情侣照圣地' },
+  yongqing:  { name: '永庆坊',                       addr: '恩宁路',             ll: [23.114821, 113.237495],note: '二期已完工，街区更完整' },
+  shangxiajiu:{ name: '上下九步行街',                 addr: '上下九路',           ll: [23.1155, 113.2437],    note: '西关小吃聚集地' },
+  enning:    { name: '恩宁路骑楼',                    addr: '恩宁路',             ll: [23.1156, 113.2394],    note: '老广州骑楼街，随手出片' },
+  litchi:    { name: '荔枝湾涌',                     addr: '龙津西路泮塘',        ll: [23.1185, 113.2372],    note: '西关水乡，傍晚散步舒服' },
+  dinner1:   { name: '晚餐（永庆坊/黄沙附近）',       addr: '永庆坊周边',          ll: [23.1139, 113.2368],    note: '可吃粤菜/西关家常菜' },
+  dinner2:   { name: '晚餐（上下九/永庆坊）',          addr: '上下九周边',          ll: [23.1148, 113.2415],    note: '陈添记、南信、顺记等老字号' },
+  dinner3:   { name: '晚餐（泮塘/荔湾湖旁）',          addr: '泮塘路',             ll: [23.1196, 113.2386],    note: '泮塘马蹄糕、荔湾名食家' },
+  egrt:      { name: '白鹅潭 / 珠江夜景',            addr: '沙面南侧江边',        ll: [23.1070, 113.2350],    note: '白鹅潭大湾区艺术中心，江景收尾' }
+};
+
+// ---------- 三条路线 ----------
+const routes = {
+  r1: {
+    color: C.r1, label: '① 西城都荟线（最舒服 9/10）',
+    seq: ['linkshow', 'shamian', 'yongqing', 'dinner1', 'egrt']
+  },
+  r2: {
+    color: C.r2, label: '② 荔湾广场线（最热闹 8.5/10）',
+    seq: ['liwanPlaza', 'shangxiajiu', 'yongqing', 'dinner2', 'shamian', 'egrt']
+  },
+  r3: {
+    color: C.r3, label: '③ 恒宝广场线（🏆 1001天首选 9/10）',
+    seq: ['hengbao', 'enning', 'yongqing', 'litchi', 'dinner3', 'shamian', 'egrt']
+  }
+};
+
+const layers = {};   // r1/r2/r3 -> L.layerGroup
+const startPins = {};// 起点单独标记
+
+function popupHTML(key, idx, total, routeLabel) {
+  const s = stops[key];
+  return `<b>${s.name}</b><br>📍 ${s.addr}<br>${s.note}
+          <br><span style="color:#999">第 ${idx}/${total} 站 · ${routeLabel}</span>`;
+}
+
+for (const [rid, r] of Object.entries(routes)) {
+  const g = L.layerGroup().addTo(map);
+  const pts = r.seq.map(k => stops[k].ll);
+
+  // 主线
+  L.polyline(pts, { color: r.color, weight: 5, opacity: 0.85 })
+    .bindPopup(`<b style="color:${r.color}">${r.label}</b><br>全程步行约 3–5 km`)
+    .addTo(g);
+
+  // 中途站：序号圆点
+  r.seq.forEach((k, i) => {
+    const s = stops[k];
+    if (i === 0) return; // 起点用大头针
+    const icon = L.divIcon({
+      className: '',
+      html: `<div class="stop-number" style="background:${r.color}">${i + 1}</div>`,
+      iconSize: [24, 24], iconAnchor: [12, 12]
+    });
+    L.marker(s.ll, { icon }).addTo(g)
+      .bindPopup(popupHTML(k, i + 1, r.seq.length, r.label));
+  });
+
+  // 起点：大头针
+  const s0 = stops[r.seq[0]];
+  const pin = L.divIcon({
+    className: '',
+    html: `<div class="start-pin" style="background:${r.color}"><span>起</span></div>`,
+    iconSize: [30, 30], iconAnchor: [15, 28]
+  });
+  L.marker(s0.ll, { icon: pin, zIndexOffset: 1000 }).addTo(g)
+    .bindPopup(popupHTML(r.seq[0], 1, r.seq.length, r.label));
+
+  layers[rid] = g;
+}
+
+// ---------- 图例开关 ----------
+document.querySelectorAll('input[data-toggle]').forEach(cb => {
+  cb.addEventListener('change', () => {
+    const rid = cb.dataset.toggle;
+    if (cb.checked) map.addLayer(layers[rid]);
+    else map.removeLayer(layers[rid]);
+  });
+});
+
+// ---------- 路线项点击 → 地图聚焦该线 ----------
+document.querySelectorAll('.route-item').forEach(item => {
+  item.querySelector('.route-head').addEventListener('dblclick', () => {
+    const rid = item.dataset.route;
+    const pts = routes[rid].seq.map(k => stops[k].ll);
+    map.fitBounds(L.latLngBounds(pts).pad(0.25));
+  });
+});
+
+// 初始视野
+map.fitBounds(L.latLngBounds([
+  stops.liwanPlaza.ll, stops.egrt.ll, stops.litchi.ll
+]).pad(0.15));
+</script>
+</body>
+</html>

@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>像素change · 图片转像素画</title>
+<style>
+  :root {
+    --bg: #101116; --panel: #16181e; --panel2: #1c1f27; --line: #2a2e38;
+    --text: #e4e2e8; --dim: #8b90a0; --green: #8bf0b0; --gold: #ffcf60; --pink: #ff6d8a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text); min-height: 100vh;
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; font-size: 14px;
+  }
+  header {
+    display: flex; align-items: center; gap: 12px; padding: 14px 20px;
+    border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); z-index: 5;
+  }
+  .logo { width: 34px; height: 34px; image-rendering: pixelated; }
+  h1 { font-size: 17px; font-weight: 700; letter-spacing: .5px; }
+  h1 em { color: var(--green); font-style: normal; }
+  .sub { color: var(--dim); font-size: 12px; margin-left: 4px; }
+  header .btn { margin-left: auto; }
+  main { display: flex; gap: 14px; padding: 14px 20px; align-items: stretch; }
+  @media (max-width: 900px) { main { flex-direction: column; } }
+  /* 预览 */
+  .stage {
+    flex: 1 1 62%; min-height: 70vh; display: flex; flex-direction: column;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+  }
+  .canvas-wrap {
+    flex: 1; position: relative; background:
+      repeating-conic-gradient(#0c0d12 0 25%, #101218 0 50%) 0 0/24px 24px;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+  canvas#view { max-width: 100%; max-height: calc(70vh - 40px); image-rendering: pixelated; display: block; }
+  .drop {
+    position: absolute; inset: 0; display: flex; flex-direction: column; gap: 14px;
+    align-items: center; justify-content: center; color: var(--dim); cursor: pointer; text-align: center;
+  }
+  .drop.hidden { display: none; }
+  .drop .big { font-size: 40px; color: var(--pink); }
+  .drop:hover { color: var(--text); }
+  .stagebar {
+    display: flex; gap: 14px; align-items: center; padding: 8px 14px; font-size: 12px; color: var(--dim);
+    border-top: 1px solid var(--line); flex-wrap: wrap;
+  }
+  .stagebar b { color: var(--green); font-weight: 600; }
+  .stagebar input[type=range] { flex: 1; min-width: 120px; }
+  /* 面板 */
+  .panel {
+    flex: 0 0 340px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 14px; padding: 14px 16px 20px; align-self: flex-start; position: sticky; top: 70px;
+  }
+  @media (max-width: 900px) { .panel { flex: 1 1 auto; position: static; width: 100%; } }
+  .sec { margin-top: 14px; }
+  .sec:first-child { margin-top: 2px; }
+  .sec > .head { display: flex; justify-content: space-between; margin-bottom: 6px; }
+  .sec label { color: var(--dim); font-size: 12px; }
+  .sec .val { color: var(--green); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    padding: 5px 10px; border: 1px solid var(--line); border-radius: 999px; cursor: pointer;
+    color: var(--dim); user-select: none; font-size: 12.5px; background: var(--panel2); display: inline-flex; align-items: center; gap: 6px;
+  }
+  .chip:hover { border-color: #3d4250; color: var(--text); }
+  .chip.on { background: #1d4a2e; border-color: #2e7a4c; color: var(--green); }
+  .chip .sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; border: 1px solid #ffffff33; }
+  input[type=range] { width: 100%; accent-color: var(--green); height: 22px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--panel2); color: var(--text); cursor: pointer; font-size: 13.5px;
+  }
+  .btn:hover { border-color: #3d4250; }
+  .btn.primary { background: #1d4a2e; border-color: #2e7a4c; color: var(--green); font-weight: 600; }
+  .btn.primary:hover { background: #255c39; }
+  .row { display: flex; gap: 8px; margin-top: 14px; }
+  .row .btn { flex: 1; justify-content: center; }
+  input[type=file] { display: none; }
+  .fine { display: grid; grid-template-columns: 44px 1fr 46px; gap: 8px; align-items: center; font-size: 12px; color: var(--dim); margin: 2px 0; }
+  .fine output { text-align: right; color: var(--gold); font-variant-numeric: tabular-nums; }
+  .fine output.zero { color: var(--dim); }
+  .pal-bar { display: flex; height: 14px; border-radius: 4px; overflow: hidden; border: 1px solid var(--line); margin-top: 8px; }
+  .pal-bar i { flex: 1; }
+  footer { color: var(--dim); text-align: center; font-size: 12px; padding: 10px 0 26px; }
+  footer code { color: var(--green); }
+  /* 拼豆弹窗 */
+  #beadModal {
+    position: fixed; inset: 0; background: #000a; z-index: 50;
+    display: none; align-items: flex-end; justify-content: center;
+  }
+  #beadModal.open { display: flex; }
+  .bead-panel {
+    background: var(--panel); border: 1px solid var(--line); border-bottom: none;
+    border-radius: 16px 16px 0 0; width: min(560px, 100vw); max-height: 86vh;
+    display: flex; flex-direction: column; padding: 16px 18px 12px;
+  }
+  .bead-head { display: flex; align-items: center; gap: 10px; }
+  .bead-head b { font-size: 15px; }
+  .bead-stat { color: var(--dim); font-size: 12px; }
+  .bead-close { margin-left: auto; cursor: pointer; color: var(--dim); font-size: 16px; padding: 2px 6px; }
+  .bead-close:hover { color: var(--text); }
+  .bead-cards { display: flex; gap: 6px; margin: 10px 0 6px; }
+  .bead-list { overflow-y: auto; min-height: 60px; max-height: 44vh; margin-top: 4px; }
+  .bead-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; border-bottom: 1px solid #ffffff0d; }
+  .bead-row .sw2 { width: 22px; height: 22px; border-radius: 6px; border: 1px solid #ffffff22; flex: 0 0 22px; }
+  .bead-row .code { font-size: 13.5px; }
+  .bead-row .nm { color: var(--dim); font-size: 11px; }
+  .bead-row .ct { margin-left: auto; color: var(--gold); font-variant-numeric: tabular-nums; }
+  .bead-empty { color: var(--dim); text-align: center; padding: 22px 0; }
+  .bead-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .bead-actions .btn { flex: 1; justify-content: center; }
+  .bead-tip { color: var(--dim); font-size: 11px; text-align: center; margin-top: 8px; }
+</style>
+</head>
+<body>
+<header>
+  <canvas class="logo" id="logo" width="8" height="8"></canvas>
+  <h1>像素<em>change</em></h1>
+  <span class="sub">图片 → 可选规格像素画（Web Demo，与 Android 版同一套算法）</span>
+  <button class="btn primary" onclick="fileInput.click()">📁 选择图片</button>
+</header>
+
+<main>
+  <section class="stage">
+    <div class="canvas-wrap" id="wrap">
+      <canvas id="view" width="320" height="240"></canvas>
+      <div class="drop" id="drop">
+        <div class="big">▦</div>
+        <div>把图片拖到这里，或点击选择<br><span style="font-size:12px">支持 PNG / JPG / WebP</span></div>
+      </div>
+    </div>
+    <div class="stagebar">
+      <span id="stat">未载入图片</span>
+      <span style="margin-left:auto">原图对比</span>
+      <input type="range" id="split" min="0" max="100" value="50" disabled>
+      <span style="margin-right:8px">像素画</span>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="showGrid"> 网格线
+      </label>
+    </div>
+  </section>
+
+  <aside class="panel">
+    <div class="sec">
+      <div class="head"><label>像素规格</label><span class="val" id="v-grid">64 列</span></div>
+      <input type="range" id="grid" min="8" max="256" step="4" value="64">
+    </div>
+
+    <div class="sec">
+      <div class="head"><label>调色板</label><span class="val" id="v-pal">自适应 16 色</span></div>
+      <div class="chips" id="palKind"></div>
+      <div id="palExtra"></div>
+      <div class="pal-bar" id="palBar"></div>
+    </div>
+
+    <div class="sec">
+      <div class="head"><label>抖动</label><span class="val" id="v-dither">关闭</span></div>
+      <div class="chips" id="dither"></div>
+      <div id="ditherExtra"></div>
+    </div>
+
+    <div class="sec">
+      <div class="head"><label>采样方式</label><span class="val" id="v-sample">区域均值</span></div>
+      <div class="chips" id="sample"></div>
+    </div>
+
+    <div class="sec">
+      <div class="head"><label>画面微调</label></div>
+      <div class="fine"><span>亮度</span><input type="range" id="bright" min="-100" max="100" value="0"><output id="o-bright">—</output></div>
+      <div class="fine"><span>对比度</span><input type="range" id="contrast" min="-100" max="100" value="0"><output id="o-contrast">—</output></div>
+      <div class="fine"><span>饱和度</span><input type="range" id="sat" min="-100" max="100" value="0"><output id="o-sat">—</output></div>
+    </div>
+
+    <div class="sec">
+      <div class="head"><label>导出放大倍数</label><span class="val" id="v-scale">8x</span></div>
+      <div class="chips" id="scale"></div>
+    </div>
+
+    <div class="row">
+      <button class="btn" id="random">🎲 随机风格</button>
+      <button class="btn primary" id="download">⬇ 导出 PNG</button>
+    </div>
+    <div class="row">
+      <button class="btn" id="beadBtn" disabled>🧩 拼豆清单 / 图纸</button>
+    </div>
+  </aside>
+</main>
+
+<footer>算法内核与 Android 版一致：<code>BOX 降采样 → 中位切分调色板 → 量化 / 抖动</code>，导出为最近邻硬边放大 PNG</footer>
+<input type="file" id="fileInput" accept="image/*">
+
+<!-- 拼豆弹窗 -->
+<div id="beadModal">
+  <div class="bead-panel">
+    <div class="bead-head">
+      <b>🧩 拼豆清单</b>
+      <span id="beadStat" class="bead-stat"></span>
+      <span class="bead-close" id="beadClose">✕</span>
+    </div>
+    <div class="bead-cards" id="beadCards"></div>
+    <div class="bead-list" id="beadList"></div>
+    <div class="bead-actions">
+      <button class="btn" id="beadCopy">📋 复制清单</button>
+      <button class="btn" id="beadCsv">⬇ CSV</button>
+      <button class="btn primary" id="beadPattern">🖼 导出图纸</button>
+    </div>
+    <div class="bead-tip">图纸与清单按当前预览网格生成；屏幕颜色为 sRGB 近似，实物以色卡为准。</div>
+  </div>
+</div>
+
+<script>
+'use strict';
+// ============================================================ 调色板数据
+const PRESETS = {
+  GAMEBOY:      { label: 'Game Boy', colors: ['#0f380f','#306230','#8bac0f','#9bbc0f'] },
+  GB_POCKET:    { label: 'GB Pocket', colors: ['#181818','#4a4a4a','#8c8c8c','#d6d6d6'] },
+  PICO8:        { label: 'PICO-8', colors: ['#000000','#1D2B53','#7E2553','#008751','#AB5236','#5F574F','#C2C3C7','#FFF1E8','#FF004D','#FFA300','#FFEC27','#00E436','#29ADFF','#83769C','#FF77A8','#FFCCAA'] },
+  SWEETIE16:    { label: 'Sweetie 16', colors: ['#1a1c2c','#5d275d','#b13e53','#ef7d57','#ffcd75','#a7f070','#38b764','#257179','#29366f','#3b5dc9','#41a6f6','#73eff7','#f4f4f4','#94b0c2','#566c86','#333c57'] },
+  NES:          { label: 'NES', colors: ['#7C7C7C','#0000FC','#0000BC','#4428BC','#940084','#A80020','#A81000','#881400','#503000','#007800','#006800','#005800','#004058','#BCBCBC','#0078F8','#0058F8','#6844FC','#D800CC','#E40058','#F83800','#E45C10','#AC7C00','#00B800','#00A800','#00A844','#008888','#F8F8F8','#3CBCFC','#6888FC','#9878F8','#F878F8','#F85898','#F87858','#FCA044','#F8B800','#B8F818','#58D854','#58F898','#00E8D8','#787878','#FCFCFC','#A4E4FC','#B8B8F8','#D8B8F8','#F8B8F8','#F8A4C0','#F0D0B0','#FCE0A8','#F8D878','#D8F878','#B8F8B8','#B8F8D8','#00FCFC','#F8D8F8'] },
+  CGA:          { label: 'CGA', colors: ['#000000','#0000AA','#00AA00','#00AAAA','#AA0000','#AA00AA','#AA5500','#AAAAAA','#555555','#5555FF','#55FF55','#55FFFF','#FF5555','#FF55FF','#FFFF55','#FFFFFF'] },
+  C64:          { label: 'C64', colors: ['#000000','#FFFFFF','#880000','#AAFFEE','#CC44CC','#00CC55','#0000AA','#EEEE77','#DD8855','#664400','#FF7777','#333333','#777777','#AAFF66','#0088FF','#BBBBBB'] },
+  ZX:           { label: 'ZX Spectrum', colors: ['#000000','#0000D7','#D70000','#D700D7','#00D700','#00D7D7','#D7D700','#D7D7D7','#0000FF','#FF0000','#FF00FF','#00FF00','#00FFFF','#FFFF00','#FFFFFF'] },
+};
+const hex = s => {
+  s = s.replace('#','');
+  return [parseInt(s.slice(0,2),16), parseInt(s.slice(2,4),16), parseInt(s.slice(4,6),16)];
+};
+Object.values(PRESETS).forEach(p => p.rgb = p.colors.map(hex));
+
+// ============================================================ 拼豆色卡（与 pixel-core Beads.kt 同步：code|name|hex）
+const BEAD_DATA = {
+  MARD: { label: 'MARD 291 色', data: `
+A1||FAF4C8
+A2||FFFFD5
+A3||FEFF8B
+A4||FBED56
+A5||F4D738
+A6||FEAC4C
+A7||FE8B4C
+A8||FFDA45
+A9||FF995B
+A10||F77C31
+A11||FFDD99
+A12||FE9F72
+A13||FFC365
+A14||FD543D
+A15||FFF365
+A16||FFFF9F
+A17||FFE36E
+A18||FEBE7D
+A19||FD7C72
+A20||FFD568
+A21||FFE395
+A22||F4F57D
+A23||E6C9B7
+A24||F7F8A2
+A25||FFD67D
+A26||FFC830
+B1||E6EE31
+B2||63F347
+B3||9EF780
+B4||5DE035
+B5||35E352
+B6||65E2A6
+B7||3DAF80
+B8||1C9C4F
+B9||27523A
+B10||95D3C2
+B11||5D722A
+B12||166F41
+B13||CAEB7B
+B14||ADE946
+B15||2E5132
+B16||C5ED9C
+B17||9BB13A
+B18||E6EE49
+B19||24B88C
+B20||C2F0CC
+B21||156A6B
+B22||0B3C43
+B23||303A21
+B24||EEFCA5
+B25||4E846D
+B26||8D7A35
+B27||CCE1AF
+B28||9EE5B9
+B29||C5E254
+B30||E2FCB1
+B31||B0E792
+B32||9CAB5A
+C1||E8FFE7
+C2||A9F9FC
+C3||A0E2FB
+C4||41CCFF
+C5||01ACEB
+C6||50AAF0
+C7||3677D2
+C8||0F54C0
+C9||324BCA
+C10||3EBCE2
+C11||28DDDE
+C12||1C334D
+C13||CDE8FF
+C14||D5FDFF
+C15||22C4C6
+C16||1557A8
+C17||04D1F6
+C18||1D3344
+C19||1887A2
+C20||176DAF
+C21||BEDDFF
+C22||67B4BE
+C23||C8E2FF
+C24||7CC4FF
+C25||A9E5E5
+C26||3CAED8
+C27||D3DFFA
+C28||BBCFED
+C29||34488E
+D1||AEB4F2
+D2||858EDD
+D3||2F54AF
+D4||182A84
+D5||B843C5
+D6||AC7BDE
+D7||8854B3
+D8||E2D3FF
+D9||D5B9F8
+D10||361851
+D11||B9BAE1
+D12||DE9AD4
+D13||B90095
+D14||8B279B
+D15||2F1F90
+D16||E3E1EE
+D17||C4D4F6
+D18||A45EC7
+D19||D8C3D7
+D20||9C32B2
+D21||9A009B
+D22||333A95
+D23||EBDAFC
+D24||7786E5
+D25||494FC7
+D26||DFC2F8
+E1||FDD3CC
+E2||FEC0DF
+E3||FFB7E7
+E4||E8649E
+E5||F551A2
+E6||F13D74
+E7||C63478
+E8||FFDBE9
+E9||E970CC
+E10||D33793
+E11||FCDDD2
+E12||F78FC3
+E13||B5006D
+E14||FFD1BA
+E15||F8C7C9
+E16||FFF3EB
+E17||FFE2EA
+E18||FFC7DB
+E19||FEBAD5
+E20||D8C7D1
+E21||BD9DA1
+E22||B785A1
+E23||937A8D
+E24||E1BCE8
+F1||FD957B
+F2||FC3D46
+F3||F74941
+F4||FC283C
+F5||E7002F
+F6||943630
+F7||971937
+F8||BC0028
+F9||E2677A
+F10||8A4526
+F11||5A2121
+F12||FD4E6A
+F13||F35744
+F14||FFA9AD
+F15||D30022
+F16||FEC2A6
+F17||E69C79
+F18||D37C46
+F19||C1444A
+F20||CD9391
+F21||F7B4C6
+F22||FDC0D0
+F23||F67E66
+F24||E698AA
+F25||E54B4F
+G1||FFE2CE
+G2||FFC4AA
+G3||F4C3A5
+G4||E1B383
+G5||EDB045
+G6||E99C17
+G7||9D5B3E
+G8||753832
+G9||E6B483
+G10||D98C39
+G11||E0C593
+G12||FFC890
+G13||B7714A
+G14||8D614C
+G15||FCF9E0
+G16||F2D9BA
+G17||78524B
+G18||FFE4CC
+G19||E07935
+G20||A94023
+G21||B88558
+H1||FDFBFF
+H2||FEFFFF
+H3||B6B1BA
+H4||89858C
+H5||48464E
+H6||2F2B2F
+H7||000000
+H8||E7D6DB
+H9||EDEDED
+H10||EEE9EA
+H11||CECDD5
+H12||FFF5ED
+H13||F5ECD2
+H14||CFD7D3
+H15||98A6A8
+H16||1D1414
+H17||F1EDED
+H18||FFFDF0
+H19||F6EFE2
+H20||949FA3
+H21||FFFBE1
+H22||CACAD4
+H23||9A9D94
+M1||BCC6B8
+M2||8AA386
+M3||697D80
+M4||E3D2BC
+M5||D0CCAA
+M6||B0A782
+M7||B4A497
+M8||B38281
+M9||A58767
+M10||C5B2BC
+M11||9F7594
+M12||644749
+M13||D19066
+M14||C77362
+M15||757D78
+P1||FCF7F8
+P2||B0A9AC
+P3||AFDCAB
+P4||FEA49F
+P5||EE8C3E
+P6||5FD0A7
+P7||EB9270
+P8||F0D958
+P9||D9D9D9
+P10||D9C7EA
+P11||F3ECC9
+P12||E6EEF2
+P13||AACBEF
+P14||337680
+P15||668575
+P16||FEBF45
+P17||FEA324
+P18||FEB89F
+P19||FFFEEC
+P20||FEBECF
+P21||ECBEBF
+P22||E4A89F
+P23||A56268
+Q1||F2A5E8
+Q2||E9EC91
+Q3||FFFF00
+Q4||FFEBFA
+Q5||76CEDE
+R1||D50D21
+R2||F92F83
+R3||FD8324
+R4||F8EC31
+R5||35C75B
+R6||238891
+R7||19779D
+R8||1A60C3
+R9||9A56B4
+R10||FFDB4C
+R11||FFEBFA
+R12||D8D5CE
+R13||55514C
+R14||9FE4DF
+R15||77CEE9
+R16||3ECFCA
+R17||4A867A
+R18||7FCD9D
+R19||CDE55D
+R20||E8C7B4
+R21||AD6F3C
+R22||6C372F
+R23||FEB872
+R24||F3C1C0
+R25||C9675E
+R26||D293BE
+R27||EA8CB1
+R28||9C87D6
+T1||FFFFFF
+Y1||FD6FB4
+Y2||FEB481
+Y3||D7FAA0
+Y4||8BDBFA
+Y5||E987EA
+ZG1||DAABB3
+ZG2||D6AA87
+ZG3||C1BD8D
+ZG4||96869F
+ZG5||8490A6
+ZG6||94BFE2
+ZG7||E2A9D2
+ZG8||AB91C0
+` },
+  PERLER: { label: 'Perler 57 色', data: `
+P01|White|F1F1F1
+P02|Cream|E0DEA9
+P03|Yellow|ECD800
+P04|Orange|ED6120
+P05|Red|F01820
+P06|Bubblegum|DD669B
+P07|Purple|604089
+P08|Dark Blue|2B3F87
+P09|Light Blue|3370C0
+P10|Dark Green|1C753E
+P11|Light Green|56BA9F
+P12|Brown|513931
+P17|Grey|8A8D91
+P18|Black|2E2F32
+P20|Rust|8C372C
+P21|Light Brown|815D34
+P33|Peach|EEBAB2
+P35|Tan|BC9371
+P38|Magenta|F22A7B
+P52|Pastel Blue|5390D1
+P53|Pastel Green|76C882
+P54|Pastel Lavender|8A72C1
+P56|Pastel Yellow|FEF875
+P57|Cheddar|F1AA0C
+P58|Toothpaste|93C8D4
+P59|Hot Coral|FF3851
+P60|Plum|A24B9C
+P61|Kiwi Lime|6CBE13
+P62|Turquoise|2B89C6
+P63|Blush|FF8285
+P70|Periwinkle Blue|647CBE
+P79|Light Pink|F6B3DD
+P80|Bright Green|4FAD42
+P81|Light Gray|EEE3CF
+P82|Light Lavender|AD98D4
+P83|Pink|E44892
+P85|Gold|BB7634
+P88|Raspberry|A53061
+P90|Butterscotch|D48437
+P91|Parrot Green|067C81
+P92|Dark Grey|4D5156
+P93|Blueberry Cream|8297D9
+P96|Cranapple|801922
+P97|Prickly Pear|BDDA01
+P98|Sand|E4B690
+P105|Silver|777B81
+P179|Evergreen|114938
+P100|Pearl Coral|F97E79
+P101|Pearl Light Blue|7AAEA2
+P102|Pearl Green|84B791
+P103|Pearl Yellow|CAC033
+P104|Pearl Light Pink|D7A8A2
+P47|Neon Yellow|DCE002
+P48|Neon Orange|FF7700
+P49|Neon Green|019E43
+P50|Neon Pink|FF3991
+P75|Glow Green|BEC696
+` },
+};
+const parseBeads = d => d.trim().split('\n').map(l => {
+  const [code, name, h] = l.split('|');
+  return { code, name: name || null, rgb: hex(h), hex: '#' + h.toUpperCase() };
+});
+const beadCard = k => { const c = BEAD_DATA[k]; if (!c.parsed) c.parsed = parseBeads(c.data); return c.parsed; };
+
+// sRGB -> CIE Lab（与 Kotlin Color.kt 一致，D65）
+function srgbToLabArr(c) {
+  const lin = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+  const r = lin(c[0]), g = lin(c[1]), b = lin(c[2]);
+  let x = (r*0.4124564+g*0.3575761+b*0.1804375)/0.95047;
+  let y = (r*0.2126729+g*0.7151522+b*0.0721750)/1.0;
+  let z = (r*0.0193339+g*0.1191920+b*0.9503041)/1.08883;
+  const f = v => v > 0.008856 ? Math.cbrt(v) : 7.787*v + 16/116;
+  x = f(x); y = f(y); z = f(z);
+  return [116*y-16, 500*(x-y), 200*(y-z)];
+}
+function labDist2(a, b) {
+  const A = srgbToLabArr(a), B = srgbToLabArr(b);
+  const d0 = A[0]-B[0], d1 = A[1]-B[1], d2 = A[2]-B[2];
+  return d0*d0 + d1*d1 + d2*d2;
+}
+// 调色板 -> 最近拼豆（Lab 距离，与 Android 版一致）
+function mapToBeadsJS(palette, beads) {
+  const labs = beads.map(b => srgbToLabArr(b.rgb));
+  return palette.map(c => {
+    const lab = srgbToLabArr(c);
+    let best = 0, bd = Infinity;
+    for (let j = 0; j < beads.length; j++) {
+      const B = labs[j];
+      const d0 = lab[0]-B[0], d1 = lab[1]-B[1], d2 = lab[2]-B[2];
+      const d = d0*d0 + d1*d1 + d2*d2;
+      if (d < bd) { bd = d; best = j; }
+    }
+    return beads[best];
+  });
+}
+function beadInventoryJS(result, mapping) {
+  const acc = new Map();
+  for (let i = 0; i < result.idx.length; i++) {
+    const p = result.idx[i];
+    if (p < 0) continue;
+    const bead = mapping[p];
+    const e = acc.get(bead.code);
+    if (e) e.count++; else acc.set(bead.code, { bead, count: 1 });
+  }
+  return [...acc.values()].sort((a, b) => b.count - a.count)
+    .map(e => ({ code: e.bead.code, name: e.bead.name, rgb: e.bead.rgb, hex: e.bead.hex, count: e.count }));
+}
+function beadCsvJS(inv) {
+  const rows = ['\uFEFF色号,颜色名称,参考颜色,数量'];
+  let total = 0;
+  for (const e of inv) { rows.push(`${e.code},${e.name || ''},${e.hex},${e.count}`); total += e.count; }
+  rows.push(`合计,,,${total}`);
+  return rows.join('\r\n');
+}
+function drawBeadPattern(result, mapping, label) {
+  const { w, h, idx } = result;
+  const cell = Math.max(12, Math.min(48, Math.floor(4096 / Math.max(w, h))));
+  const header = cell * 2;
+  const c = document.createElement('canvas');
+  c.width = w * cell; c.height = h * cell + header;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+  const showText = cell >= 18;
+  ctx.font = Math.floor(cell * 0.30) + 'px sans-serif';
+  ctx.textAlign = 'center';
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const p = idx[y * w + x];
+    const left = x * cell, top = header + y * cell;
+    if (p < 0) { ctx.fillStyle = '#f0f0f0'; ctx.fillRect(left, top, cell, cell); continue; }
+    const bead = mapping[p];
+    ctx.fillStyle = bead.hex; ctx.fillRect(left, top, cell, cell);
+    if (showText) {
+      const lum = 0.299*bead.rgb[0] + 0.587*bead.rgb[1] + 0.114*bead.rgb[2];
+      ctx.fillStyle = lum > 140 ? '#000' : '#fff';
+      ctx.fillText(bead.code, left + cell/2, top + cell * 0.82);
+    }
+  }
+  ctx.strokeStyle = '#ddd'; ctx.lineWidth = 1; ctx.beginPath();
+  for (let gx = 0; gx <= w; gx++) { ctx.moveTo(gx*cell + .5, header); ctx.lineTo(gx*cell + .5, c.height); }
+  for (let gy = 0; gy <= h; gy++) { ctx.moveTo(0, header + gy*cell + .5); ctx.lineTo(c.width, header + gy*cell + .5); }
+  ctx.stroke();
+  ctx.strokeStyle = '#999'; ctx.lineWidth = 2;
+  ctx.strokeRect(1, header + 1, c.width - 2, c.height - header - 2);
+  ctx.fillStyle = '#000'; ctx.textAlign = 'left';
+  ctx.font = Math.floor(cell * 0.6) + 'px sans-serif';
+  ctx.fillText(`拼豆图纸 · ${label} · ${w}×${h} 格` + (showText ? '' : ' · 色号见清单'), cell * 0.5, header * 0.75);
+  return c;
+}
+
+// 拼豆弹窗交互
+let beadInv = [];
+const beadModal = document.getElementById('beadModal');
+function renderBeadList() {
+  const list = document.getElementById('beadList');
+  const inv = beadInv;
+  document.getElementById('beadStat').textContent =
+    `${S.gridW || S.result.w}×${S.gridH || S.result.h} 格 · ${inv.reduce((s, e) => s + e.count, 0)} 颗`;
+  if (!inv.length) { list.innerHTML = '<div class="bead-empty">正在计算用豆量…</div>'; return; }
+  list.innerHTML = inv.map(e => `
+    <div class="bead-row">
+      <span class="sw2" style="background:${e.hex}"></span>
+      <span><div class="code">${e.code}</div>${e.name ? `<div class="nm">${e.name}</div>` : ''}</span>
+      <span class="ct">× ${e.count}</span>
+    </div>`).join('');
+}
+function renderBeadCards() {
+  const wrap = document.getElementById('beadCards');
+  wrap.innerHTML = '';
+  Object.entries(BEAD_DATA).forEach(([k, c]) => {
+    const d = document.createElement('div');
+    d.className = 'chip' + (S.beadCard === k ? ' on' : '');
+    d.textContent = c.label;
+    d.onclick = () => { S.beadCard = k; renderBeadCards(); computeBeads(); };
+    wrap.appendChild(d);
+  });
+}
+function computeBeads() {
+  if (!S.result) return;
+  const beads = beadCard(S.beadCard);
+  const mapping = mapToBeadsJS(S.result.palette, beads);
+  beadInv = beadInventoryJS(S.result, mapping);
+  renderBeadList();
+}
+document.getElementById('beadBtn').onclick = () => {
+  if (!S.result) return;
+  beadModal.classList.add('open');
+  beadInv = [];
+  renderBeadList();
+  renderBeadCards();
+  setTimeout(computeBeads, 30);
+};
+document.getElementById('beadClose').onclick = () => beadModal.classList.remove('open');
+beadModal.onclick = e => { if (e.target === beadModal) beadModal.classList.remove('open'); };
+document.getElementById('beadCopy').onclick = () => {
+  if (!beadInv.length) return;
+  const lines = beadInv.map(e => e.code + (e.name ? ' ' + e.name : '') + ' × ' + e.count);
+  const text = `【拼豆用豆清单 · ${BEAD_DATA[S.beadCard].label}】\n` + lines.join('\n') +
+    `\n共 ${beadInv.length} 色 / ${beadInv.reduce((s, e) => s + e.count, 0)} 颗`;
+  navigator.clipboard.writeText(text).then(
+    () => { document.getElementById('beadCopy').textContent = '✓ 已复制'; setTimeout(() => document.getElementById('beadCopy').textContent = '📋 复制清单', 1200); },
+    () => alert(text),
+  );
+};
+document.getElementById('beadCsv').onclick = () => {
+  if (!beadInv.length) return;
+  const blob = new Blob([beadCsvJS(beadInv)], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.download = `beads_list_${S.result.w}x${S.result.h}.csv`;
+  a.href = URL.createObjectURL(blob);
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+};
+document.getElementById('beadPattern').onclick = () => {
+  if (!beadInv.length) return;
+  const beads = beadCard(S.beadCard);
+  const mapping = mapToBeadsJS(S.result.palette, beads);
+  const c = drawBeadPattern(S.result, mapping, BEAD_DATA[S.beadCard].label);
+  const a = document.createElement('a');
+  a.download = `beads_pattern_${S.result.w}x${S.result.h}.png`;
+  a.href = c.toDataURL('image/png');
+  a.click();
+};
+
+const DITHERS = { NONE:'关闭', FS:'Floyd–Steinberg', ATK:'Atkinson', B2:'有序 2×2', B4:'有序 4×4', B8:'有序 8×8' };
+const BAYER = {
+  2: [0,2,3,1],
+  4: [0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5],
+  8: [0,32,8,40,2,34,10,42,48,16,56,24,50,18,58,26,12,44,4,36,14,46,6,38,60,28,52,20,62,30,54,22,3,35,11,43,1,33,9,41,51,19,59,27,49,17,57,25,15,47,7,39,13,45,5,37,63,31,55,23,61,29,53,21],
+};
+const STYLES = [
+  ['赛博 GameBoy', { palKind:'PRESET', preset:'GAMEBOY', dither:'B4', grid:80 }],
+  ['漫画网点',     { palKind:'GRAY', grayLevels:4, dither:'B8', grid:96 }],
+  ['16 色幻想',    { palKind:'PRESET', preset:'PICO8', dither:'NONE', grid:128 }],
+  ['复古终端',     { palKind:'PRESET', preset:'GB_POCKET', dither:'FS', grid:64 }],
+  ['8-bit 街机',   { palKind:'PRESET', preset:'NES', dither:'NONE', grid:96 }],
+  ['Sweetie 插画', { palKind:'PRESET', preset:'SWEETIE16', dither:'ATK', grid:112 }],
+  ['黑白版画',     { palKind:'MONO', dither:'FS', grid:128 }],
+  ['极简剪影',     { palKind:'ADAPTIVE', maxColors:4, dither:'NONE', grid:32 }],
+];
+
+// ============================================================ 状态
+const S = {
+  src: null,            // 原图 ImageData（<=1024）
+  grid: 64,
+  palKind: 'ADAPTIVE',  // ADAPTIVE / PRESET / GRAY / MONO
+  maxColors: 16,
+  preset: 'SWEETIE16',
+  grayLevels: 8,
+  dither: 'NONE',
+  ditherStrength: 1,
+  sample: 'BOX',        // BOX / NEAREST
+  bright: 0, contrast: 0, sat: 0,
+  exportScale: 8,
+  beadCard: 'MARD',   // 拼豆色卡：MARD / PERLER
+  split: 0.5,
+  result: null,         // {w,h,idx,palette}
+  origSmall: null,      // 与结果同尺寸的原图（对比用）
+};
+
+// ============================================================ 算法（与 Kotlin 版一致）
+function downsample(src, tw, th, mode) {
+  const {width: sw, height: sh, data: px} = src;
+  const out = new Uint8ClampedArray(tw * th * 4);
+  for (let ty = 0; ty < th; ty++) {
+    const y0 = Math.floor(ty * sh / th), y1 = Math.max(y0 + 1, Math.floor((ty + 1) * sh / th));
+    for (let tx = 0; tx < tw; tx++) {
+      const x0 = Math.floor(tx * sw / tw), x1 = Math.max(x0 + 1, Math.floor((tx + 1) * sw / tw));
+      let ar = 0, ag = 0, ab = 0, aa = 0;
+      if (mode === 'NEAREST') {
+        const sy = (y0 + y1 - 1) >> 1, sx = (x0 + x1 - 1) >> 1, i = (sy * sw + sx) * 4;
+        out.set(px.subarray(i, i + 4), (ty * tw + tx) * 4); continue;
+      }
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+        const i = (y * sw + x) * 4, a = px[i + 3];
+        if (a >= 8) { ar += px[i] * a; ag += px[i+1] * a; ab += px[i+2] * a; aa += a; }
+      }
+      const o = (ty * tw + tx) * 4;
+      if (aa === 0) { out[o+3] = 0; continue; }
+      out[o] = ar / aa; out[o+1] = ag / aa; out[o+2] = ab / aa; out[o+3] = Math.min(255, aa / ((x1-x0)*(y1-y0)));
+    }
+  }
+  return { width: tw, height: th, data: out };
+}
+
+function adjust(c, bright, contrast, sat) {
+  const f = 1 + contrast;
+  let r = (c[0]/255 - .5) * f + .5, g = (c[1]/255 - .5) * f + .5, b = (c[2]/255 - .5) * f + .5;
+  const lum = .299*r + .587*g + .114*b, s = 1 + sat;
+  r = lum + (r-lum)*s; g = lum + (g-lum)*s; b = lum + (b-lum)*s;
+  return [clamp((r + bright)*255), clamp((g + bright)*255), clamp((b + bright)*255), c[3]];
+}
+const clamp = v => v < 0 ? 0 : v > 255 ? 255 : v;
+
+function colorHistogram(img) {
+  const bins = new Map(); // key -> [n, sr, sg, sb]
+  const px = img.data;
+  for (let i = 0; i < px.length; i += 4) {
+    if (px[i+3] < 8) continue;
+    const key = (px[i]>>3)<<10 | (px[i+1]>>3)<<5 | (px[i+2]>>3);
+    const b = bins.get(key);
+    if (b) { b[0]++; b[1]+=px[i]; b[2]+=px[i+1]; b[3]+=px[i+2]; }
+    else bins.set(key, [1, px[i], px[i+1], px[i+2]]);
+  }
+  const colors = [], counts = [];
+  for (const [, b] of bins) { colors.push([b[1]/b[0], b[2]/b[0], b[3]/b[0]]); counts.push(b[0]); }
+  return { colors, counts };
+}
+
+function boxStat(box, colors, counts) {
+  let n = 0, rMin=255, rMax=0, gMin=255, gMax=0, bMin=255, bMax=0;
+  for (const i of box) {
+    const c = colors[i], cnt = counts[i]; n += cnt;
+    rMin=Math.min(rMin,c[0]); rMax=Math.max(rMax,c[0]);
+    gMin=Math.min(gMin,c[1]); gMax=Math.max(gMax,c[1]);
+    bMin=Math.min(bMin,c[2]); bMax=Math.max(bMax,c[2]);
+  }
+  const dr=rMax-rMin, dg=gMax-gMin, db=bMax-bMin;
+  const span = Math.max(dr,dg,db);
+  return { n, span, ch: span===dr?0:span===dg?1:2 };
+}
+
+function medianCut(img, maxColors) {
+  const { colors, counts } = colorHistogram(img);
+  if (!colors.length) return [[0,0,0]];
+  if (colors.length <= maxColors) return colors;
+  let boxes = [colors.map((_, i) => i)];
+  while (boxes.length < maxColors) {
+    let best = -1, bestScore = 0;
+    for (let i = 0; i < boxes.length; i++) {
+      const st = boxStat(boxes[i], colors, counts);
+      if (!st.span) continue;
+      const score = st.n * st.span;
+      if (score > bestScore) { bestScore = score; best = i; }
+    }
+    if (best < 0) break;
+    const box = boxes[best], st = boxStat(box, colors, counts);
+    const sorted = box.slice().sort((a, b) => colors[a][st.ch] - colors[b][st.ch]);
+    const half = st.n / 2; let acc = 0, cut = 0;
+    for (let i = 0; i < sorted.length; i++) { acc += counts[sorted[i]]; if (acc >= half) { cut = i; break; } }
+    cut = Math.max(0, Math.min(cut, sorted.length - 2));
+    boxes.splice(best, 1, sorted.slice(0, cut + 1), sorted.slice(cut + 1));
+  }
+  const out = [], seen = new Set();
+  for (const box of boxes) {
+    let ar=0, ag=0, ab=0, n=0;
+    for (const i of box) { const c = colors[i], cnt = counts[i]; ar+=c[0]*cnt; ag+=c[1]*cnt; ab+=c[2]*cnt; n+=cnt; }
+    const key = `${ar/n|0},${ag/n|0},${ab/n|0}`;
+    if (!seen.has(key)) { seen.add(key); out.push([ar/n|0, ag/n|0, ab/n|0]); }
+  }
+  return out;
+}
+
+function grayscalePalette(levels) {
+  const n = Math.max(2, Math.min(256, levels));
+  return Array.from({length: n}, (_, i) => { const v = Math.round(i * 255 / (n - 1)); return [v, v, v]; });
+}
+
+function dist2(a, b) {
+  const dr=a[0]-b[0], dg=a[1]-b[1], db=a[2]-b[2], rm=(a[0]+b[0])/2;
+  return (2 + rm/256)*dr*dr + 4*dg*dg + (2 + (255-rm)/256)*db*db;
+}
+
+function makeMatcher(palette) {
+  const cache = new Map();
+  return c => {
+    const key = (c[0]<<16 | c[1]<<8 | c[2]);
+    let hit = cache.get(key);
+    if (hit !== undefined) return hit;
+    let best = 0, bd = Infinity;
+    for (let i = 0; i < palette.length; i++) {
+      const d = dist2(c, palette[i]);
+      if (d < bd) { bd = d; best = i; if (!d) break; }
+    }
+    cache.set(key, best); return best;
+  };
+}
+
+function quantize(img, palette, dither, strength) {
+  const match = makeMatcher(palette);
+  const { width: w, height: h, data: px } = img;
+  const out = new Int16Array(w * h);
+  const alpha = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) alpha[i] = px[i*4+3] >= 8 ? 1 : 0;
+
+  if (dither === 'NONE') {
+    for (let i = 0; i < w * h; i++) out[i] = alpha[i] ? match([px[i*4], px[i*4+1], px[i*4+2]]) : -1;
+    return out;
+  }
+  if (dither === 'B2' || dither === 'B4' || dither === 'B8') {
+    const n = dither === 'B2' ? 2 : dither === 'B4' ? 4 : 8;
+    const m = BAYER[n], total = n * n;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      if (!alpha[i]) { out[i] = -1; continue; }
+      const t = ((m[(y % n) * n + (x % n)] + .5) / total) - .5, off = t * strength * 64;
+      out[i] = match([clamp(px[i*4]+off), clamp(px[i*4+1]+off), clamp(px[i*4+2]+off)]);
+    }
+    return out;
+  }
+  // 误差扩散（蛇形）
+  const buf = new Float32Array(w * h * 3);
+  for (let i = 0; i < w * h; i++) { buf[i*3]=px[i*4]; buf[i*3+1]=px[i*4+1]; buf[i*3+2]=px[i*4+2]; }
+  const K = dither === 'ATK' ? 1/8 : null;
+  const add = (x, y, er, eg, eb, k) => {
+    if (x < 0 || x >= w || y < 0 || y >= h) return;
+    const i = y * w + x; if (!alpha[i]) return;
+    buf[i*3]+=er*k; buf[i*3+1]+=eg*k; buf[i*3+2]+=eb*k;
+  };
+  for (let y = 0; y < h; y++) {
+    const ltr = y % 2 === 0;
+    for (let j = 0; j < w; j++) {
+      const x = ltr ? j : w - 1 - j, i = y * w + x;
+      if (!alpha[i]) { out[i] = -1; continue; }
+      const or_=buf[i*3], og=buf[i*3+1], ob=buf[i*3+2];
+      const chosen = match([clamp(or_), clamp(og), clamp(ob)]);
+      out[i] = chosen;
+      const er=(or_-palette[chosen][0])*strength, eg=(og-palette[chosen][1])*strength, eb=(ob-palette[chosen][2])*strength;
+      if (dither === 'FS') {
+        add(x+1, y, er,eg,eb, 7/16); add(ltr?x-1:x+1, y+1, er,eg,eb, 3/16);
+        add(x, y+1, er,eg,eb, 5/16); add(ltr?x+1:x-1, y+1, er,eg,eb, 1/16);
+      } else {
+        add(x+1,y,er,eg,eb,K); add(x+2,y,er,eg,eb,K); add(x-1,y+1,er,eg,eb,K);
+        add(x,y+1,er,eg,eb,K); add(x+1,y+1,er,eg,eb,K); add(x,y+2,er,eg,eb,K);
+      }
+    }
+  }
+  return out;
+}
+
+// ============================================================ 渲染
+const view = document.getElementById('view'), vctx = view.getContext('2d');
+let renderTimer = null;
+
+function scheduleRender() { clearTimeout(renderTimer); renderTimer = setTimeout(renderAll, 50); }
+
+function renderAll() {
+  if (!S.src) return;
+  const t0 = performance.now();
+  const ratio = S.src.height / S.src.width;
+  const gw = S.grid, gh = Math.max(1, Math.round(gw * ratio));
+  let small = downsample(S.src, gw, gh, S.sample);
+  // 微调（亮度/对比度/饱和度）
+  if (S.bright || S.contrast || S.sat) {
+    for (let i = 0; i < small.data.length; i += 4) {
+      if (small.data[i+3] < 8) continue;
+      const [r,g,b] = adjust([small.data[i], small.data[i+1], small.data[i+2]], S.bright/100, S.contrast/100, S.sat/100);
+      small.data[i]=r; small.data[i+1]=g; small.data[i+2]=b;
+    }
+  }
+  let palette;
+  if (S.palKind === 'ADAPTIVE') palette = medianCut(small, S.maxColors);
+  else if (S.palKind === 'PRESET') palette = PRESETS[S.preset].rgb;
+  else if (S.palKind === 'GRAY') palette = grayscalePalette(S.grayLevels);
+  else palette = [[0,0,0],[255,255,255]];
+
+  const idx = quantize(small, palette, S.dither, S.ditherStrength);
+  S.result = { w: gw, h: gh, idx, palette };
+  S.origSmall = small;
+  const ms = Math.round(performance.now() - t0);
+
+  drawPreview();
+  document.getElementById('stat').innerHTML =
+    `<b>${gw} × ${gh}</b> 格 · <b>${palette.length}</b> 色 · 渲染 <b>${ms} ms</b>`;
+  updatePalBar(palette);
+  document.getElementById('beadBtn').disabled = false;
+  // 若拼豆弹窗开着，实时刷新清单（调参数也能看到最新颗数）
+  if (beadModal.classList.contains('open')) computeBeads();
+}
+
+function drawPreview() {
+  const { w, h, idx, palette } = S.result;
+  // 离屏小图
+  const off = new OffscreenCanvas(w, h).getContext('2d');
+  const img = off.createImageData(w, h);
+  for (let i = 0; i < w * h; i++) {
+    const o = i * 4;
+    if (idx[i] < 0) { img.data[o+3] = 0; continue; }
+    const c = palette[idx[i]];
+    img.data[o]=c[0]; img.data[o+1]=c[1]; img.data[o+2]=c[2]; img.data[o+3]=255;
+  }
+  off.putImageData(img, 0, 0);
+
+  // 原图同尺寸小图
+  const offO = new OffscreenCanvas(w, h).getContext('2d');
+  offO.putImageData(new ImageData(S.origSmall.data, w, h), 0, 0);
+
+  const split = document.getElementById('split').disabled ? 1 : +document.getElementById('split').value / 100;
+  const cw = view.width = Math.min(1200, w * Math.max(1, Math.floor(900 / w)));
+  const ch = view.height = Math.round(cw * h / w);
+  vctx.imageSmoothingEnabled = false;
+  vctx.clearRect(0, 0, cw, ch);
+  // 像素画层（底层，始终绘制）
+  vctx.drawImage(off.canvas, 0, 0, cw, ch);
+  // 原图层（上层，覆盖左侧 split 比例）
+  if (split > 0) { vctx.save(); vctx.beginPath(); vctx.rect(0, 0, cw * split, ch); vctx.clip();
+    vctx.imageSmoothingEnabled = true; vctx.drawImage(offO.canvas, 0, 0, cw, ch); vctx.restore(); }
+  if (split > 0 && split < 1) {
+    vctx.fillStyle = '#fff'; vctx.fillRect(cw * split - 1, 0, 2, ch);
+  }
+  // 网格线
+  if (document.getElementById('showGrid').checked && cw / w >= 4) {
+    vctx.strokeStyle = '#ffffff40'; vctx.lineWidth = 1;
+    const step = cw / w;
+    vctx.beginPath();
+    for (let x = step; x < cw; x += step) { vctx.moveTo(x, 0); vctx.lineTo(x, ch); }
+    for (let y = step; y < ch; y += step) { vctx.moveTo(0, y); vctx.lineTo(cw, y); }
+    vctx.stroke();
+  }
+}
+
+function updatePalBar(palette) {
+  const bar = document.getElementById('palBar');
+  bar.innerHTML = palette.map(c => `<i style="background:rgb(${c[0]},${c[1]},${c[2]})"></i>`).join('');
+}
+
+// ============================================================ 载入图片
+function loadImage(src) {
+  S.src = src;
+  document.getElementById('drop').classList.add('hidden');
+  document.getElementById('split').disabled = false;
+  renderAll();
+}
+function fileToImageData(file) {
+  const url = URL.createObjectURL(file), img = new Image();
+  img.onload = () => {
+    const MAX = 1024, sc = Math.min(1, MAX / Math.max(img.width, img.height));
+    const w = Math.max(1, Math.round(img.width * sc)), h = Math.max(1, Math.round(img.height * sc));
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0, w, h);
+    loadImage(ctx.getImageData(0, 0, w, h));
+    URL.revokeObjectURL(url);
+  };
+  img.src = url;
+}
+const fileInput = document.getElementById('fileInput');
+fileInput.onchange = e => e.target.files[0] && fileToImageData(e.target.files[0]);
+const drop = document.getElementById('drop');
+drop.onclick = () => fileInput.click();
+document.getElementById('wrap').addEventListener('dragover', e => e.preventDefault());
+document.getElementById('wrap').addEventListener('drop', e => {
+  e.preventDefault();
+  e.dataTransfer.files[0] && fileToImageData(e.dataTransfer.files[0]);
+});
+
+// ============================================================ 控件
+function bind(id, fn) { document.getElementById(id).addEventListener('input', fn); }
+
+bind('grid', e => { S.grid = +e.target.value; document.getElementById('v-grid').textContent = S.grid + ' 列'; scheduleRender(); });
+bind('split', () => S.result && drawPreview());
+bind('showGrid', () => S.result && drawPreview());
+bind('bright', e => { S.bright = +e.target.value; syncFine('bright'); scheduleRender(); });
+bind('contrast', e => { S.contrast = +e.target.value; syncFine('contrast'); scheduleRender(); });
+bind('sat', e => { S.sat = +e.target.value; syncFine('sat'); scheduleRender(); });
+
+function syncFine(k) {
+  const v = S[k], o = document.getElementById('o-' + (k === 'sat' ? 'sat' : k));
+  o.textContent = v === 0 ? '—' : (v > 0 ? '+' : '') + v + '%';
+  o.className = v === 0 ? 'zero' : '';
+}
+
+function chipRow(el, items, get, set) {
+  el.innerHTML = '';
+  items.forEach(it => {
+    const d = document.createElement('div');
+    d.className = 'chip'; d.innerHTML = it.html ?? it.label;
+    if (get() === it.value) d.classList.add('on');
+    d.onclick = () => { set(it.value); scheduleRender(); renderChips(); };
+    el.appendChild(d);
+  });
+}
+function renderChips() {
+  chipRow(document.getElementById('palKind'), [
+    { label: '自适应', value: 'ADAPTIVE' }, { label: '预设', value: 'PRESET' },
+    { label: '灰阶', value: 'GRAY' }, { label: '1-bit 黑白', value: 'MONO' },
+  ], () => S.palKind, v => { S.palKind = v; renderPalExtra(); });
+
+  const ditherEl = document.getElementById('dither');
+  ditherEl.innerHTML = '';
+  Object.entries(DITHERS).forEach(([v, label]) => {
+    const d = document.createElement('div');
+    d.className = 'chip' + (S.dither === v ? ' on' : ''); d.textContent = label;
+    d.onclick = () => { S.dither = v; document.getElementById('v-dither').textContent = label; scheduleRender(); renderChips(); };
+    ditherEl.appendChild(d);
+  });
+
+  chipRow(document.getElementById('sample'), [
+    { label: '区域均值', value: 'BOX' }, { label: '最近邻', value: 'NEAREST' },
+  ], () => S.sample, v => { S.sample = v; document.getElementById('v-sample').textContent = v === 'BOX' ? '区域均值' : '最近邻'; });
+
+  chipRow(document.getElementById('scale'), [1,2,4,8,16].map(v => ({ label: v+'x', value: v })),
+    () => S.exportScale, v => { S.exportScale = v; document.getElementById('v-scale').textContent = v + 'x'; });
+
+  renderPalExtra();
+}
+
+function renderPalExtra() {
+  const el = document.getElementById('palExtra');
+  const vk = document.getElementById('v-pal');
+  if (S.palKind === 'ADAPTIVE') {
+    vk.textContent = `自适应 ${S.maxColors} 色`;
+    el.innerHTML = `<div style="margin-top:8px"><input type="range" id="maxc" min="2" max="64" value="${S.maxColors}"></div>`;
+    el.querySelector('#maxc').oninput = e => { S.maxColors = +e.target.value; vk.textContent = `自适应 ${S.maxColors} 色`; scheduleRender(); };
+  } else if (S.palKind === 'PRESET') {
+    vk.textContent = `${PRESETS[S.preset].label} ${PRESETS[S.preset].rgb.length} 色`;
+    el.innerHTML = `<div class="chips" style="margin-top:8px" id="presets"></div>`;
+    const row = el.querySelector('#presets');
+    Object.entries(PRESETS).forEach(([k, p]) => {
+      const d = document.createElement('div');
+      d.className = 'chip' + (S.preset === k ? ' on' : '');
+      d.innerHTML = `<span class="sw" style="background:${p.colors[0]}"></span>${p.label}`;
+      d.onclick = () => { S.preset = k; vk.textContent = `${p.label} ${p.rgb.length} 色`; scheduleRender(); renderChips(); };
+      row.appendChild(d);
+    });
+  } else if (S.palKind === 'GRAY') {
+    vk.textContent = `灰阶 ${S.grayLevels} 级`;
+    el.innerHTML = `<div style="margin-top:8px"><input type="range" id="gl" min="2" max="16" value="${S.grayLevels}"></div>`;
+    el.querySelector('#gl').oninput = e => { S.grayLevels = +e.target.value; vk.textContent = `灰阶 ${S.grayLevels} 级`; scheduleRender(); };
+  } else {
+    vk.textContent = '1-bit 黑白'; el.innerHTML = '';
+  }
+}
+
+document.getElementById('random').onclick = () => {
+  const [name, st] = STYLES[Math.floor(Math.random() * STYLES.length)];
+  Object.assign(S, st);
+  document.getElementById('grid').value = st.grid;
+  document.getElementById('v-grid').textContent = st.grid + ' 列';
+  renderChips();
+  scheduleRender();
+  setTimeout(() => {
+    document.getElementById('v-dither').textContent = DITHERS[st.dither];
+  }, 0);
+  document.getElementById('stat').innerHTML = `已套用风格：<b>${name}</b>`;
+};
+
+document.getElementById('download').onclick = () => {
+  if (!S.result) return;
+  const { w, h, idx, palette } = S.result;
+  const k = S.exportScale;
+  const c = document.createElement('canvas'); c.width = w * k; c.height = h * k;
+  const ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = false;
+  const off = document.createElement('canvas'); off.width = w; off.height = h;
+  const octx = off.getContext('2d'), img = octx.createImageData(w, h);
+  for (let i = 0; i < w * h; i++) {
+    const o = i * 4;
+    if (idx[i] < 0) continue;
+    const cc = palette[idx[i]];
+    img.data[o]=cc[0]; img.data[o+1]=cc[1]; img.data[o+2]=cc[2]; img.data[o+3]=255;
+  }
+  octx.putImageData(img, 0, 0);
+  ctx.drawImage(off, 0, 0, c.width, c.height);
+  const a = document.createElement('a');
+  a.download = `pixel_${w}x${h}_${k}x.png`;
+  a.href = c.toDataURL('image/png');
+  a.click();
+};
+
+// logo
+(() => {
+  const c = document.getElementById('logo').getContext('2d');
+  ['01100110','11111111','11111111','11111111','01111110','00111100','00011000'].forEach((row, y) =>
+    [...row].forEach((v, x) => {
+      if (v === '1') { c.fillStyle = (y===1&&x===1) ? '#FFD1DC' : '#FF6D8A'; c.fillRect(x, y, 1, 1); }
+    }));
+})();
+
+renderChips();
+</script>
+</body>
+</html>
